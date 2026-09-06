@@ -36,7 +36,7 @@ export function QuickstartPreCallCard({ isLoading, error, onStartConversation, i
 
       <section className="flex flex-col justify-center p-8 text-left lg:p-11">
         <span className="font-mono text-[10px] font-semibold tracking-[.12em] text-[#3ecf8e]">READY WHEN YOU ARE</span>
-        <h2 className="mt-3 text-2xl font-medium tracking-[-.035em] text-white">Be yourself. Do not stress out.</h2>
+        <h2 className="mt-3 text-2xl font-medium tracking-[-.035em] text-white">Take your time. Answer naturally.</h2>
         <p className="mt-3 text-sm leading-6 text-[#7c7c7c]">Answer naturally and ask for a repeat or a hint whenever you need one. Your work autosaves during coding and design tasks.</p>
 
         {requiresConsent && <div className="mt-8 grid gap-5">

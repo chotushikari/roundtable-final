@@ -8,7 +8,7 @@ type RoundTableLoadingScreenProps = {
 export function RoundTableLoadingScreen({
   label = 'Preparing your experience',
   sublabel = 'Secure voice session · Powered by Agora',
-  reassurance = "Be yourself, don't stress out.",
+  reassurance = 'Take your time and answer naturally.',
   overlay = false,
 }: RoundTableLoadingScreenProps) {
   return (
