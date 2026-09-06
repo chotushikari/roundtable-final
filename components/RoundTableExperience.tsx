@@ -61,6 +61,7 @@ function createArtifact(
   roleButtonsRef: MutableRefObject<(HTMLButtonElement | null)[]>,
   anchorsRef: MutableRefObject<(HTMLDivElement | null)[]>,
   onSelectRole?: (index: number) => void,
+  onCompanionClick?: () => void,
 ): SceneState {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
@@ -205,11 +206,19 @@ function createArtifact(
   const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
   face.add(leftEye, rightEye, leftPupil, rightPupil, leftHighlight, rightHighlight, nose, mouth);
 
-  let pointerX = 0;
-  let pointerY = 0;
+  let pointerPixelX = typeof window !== 'undefined' ? window.innerWidth * 0.25 : 0;
+  let pointerPixelY = typeof window !== 'undefined' ? window.innerHeight * 0.5 : 0;
+  let smoothGazeX = 0;
+  let smoothGazeY = 0;
   let happy = false;
   let activeRoleIndex = 0;
   let frame = 0;
+
+  const onWindowPointerMove = (e: MouseEvent) => {
+    pointerPixelX = e.clientX;
+    pointerPixelY = e.clientY;
+  };
+  window.addEventListener('pointermove', onWindowPointerMove);
 
   const resize = () => {
     const rect = canvas.getBoundingClientRect();
@@ -350,19 +359,48 @@ function createArtifact(
       noseMaterial.opacity = faceAmount;
       mouthMaterial.opacity = faceAmount;
 
-      // Keep companion globe level and face camera squarely (+0.29 rad yaw compensation)
-      const baseFaceYaw = isDesktop ? 0.29 : 0;
-      face.rotation.y += (baseFaceYaw + pointerX * 0.04 - face.rotation.y) * 0.08;
-      face.rotation.x += (-pointerY * 0.02 - face.rotation.x) * 0.08;
-      face.rotation.z = 0;
+      // Compute companion screen position relative to viewport
+      const companionRect = anchorsRef.current[2]?.getBoundingClientRect();
+      const faceScreenX = companionRect ? companionRect.left + companionRect.width / 2 : window.innerWidth * 0.25;
+      const faceScreenY = companionRect ? companionRect.top + companionRect.height / 2 : window.innerHeight * 0.5;
 
-      // Pupil dynamic tracking
-      const pupilDx = pointerX * 0.025;
-      const pupilDy = pointerY * 0.02;
-      leftPupil.position.set(-0.36 + pupilDx, 0.24 + pupilDy, 1.21);
-      rightPupil.position.set(0.36 + pupilDx, 0.24 + pupilDy, 1.21);
-      leftHighlight.position.set(-0.377 + pupilDx, 0.265 + pupilDy, 1.25);
-      rightHighlight.position.set(0.343 + pupilDx, 0.265 + pupilDy, 1.25);
+      // Vector from companion's eyes to cursor in screen pixels
+      const deltaX = pointerPixelX - faceScreenX;
+      const deltaY = pointerPixelY - faceScreenY;
+
+      // Distance and normalized gaze angle relative to face
+      const gazeDist = Math.hypot(deltaX, deltaY);
+      const maxGazeRadius = Math.max(260, Math.min(window.innerWidth, window.innerHeight) * 0.38);
+      const gazeIntensity = Math.min(1.0, gazeDist / maxGazeRadius);
+      const gazeAngle = Math.atan2(deltaY, deltaX);
+
+      const targetGazeX = Math.cos(gazeAngle) * gazeIntensity;
+      const targetGazeY = -Math.sin(gazeAngle) * gazeIntensity;
+
+      // Natural eye tracking with smooth pursuit damping
+      const gazeEase = 0.14;
+      smoothGazeX += (targetGazeX - smoothGazeX) * gazeEase;
+      smoothGazeY += (targetGazeY - smoothGazeY) * gazeEase;
+
+      // Subtle lifelike micro-movement when looking around
+      const microX = !reducedMotion ? Math.sin(time * 0.0016) * 0.0025 : 0;
+      const microY = !reducedMotion ? Math.cos(time * 0.0022) * 0.002 : 0;
+      const effGazeX = Math.max(-1, Math.min(1, smoothGazeX + microX));
+      const effGazeY = Math.max(-1, Math.min(1, smoothGazeY + microY));
+
+      const pupilDx = effGazeX * 0.045;
+      const pupilDy = effGazeY * 0.032;
+      // Spherical depth contouring: as pupil moves toward edges, it curves along the eye sphere
+      const pupilDz = -(pupilDx * pupilDx + pupilDy * pupilDy) * 1.6;
+
+      leftPupil.position.set(-0.36 + pupilDx, 0.24 + pupilDy, 1.21 + pupilDz);
+      rightPupil.position.set(0.36 + pupilDx, 0.24 + pupilDy, 1.21 + pupilDz);
+
+      // Specular highlight parallax (moves slightly less than pupil to simulate glossy 3D cornea)
+      const hlDx = pupilDx * 0.68;
+      const hlDy = pupilDy * 0.68;
+      leftHighlight.position.set(-0.377 + hlDx, 0.265 + hlDy, 1.25);
+      rightHighlight.position.set(0.343 + hlDx, 0.265 + hlDy, 1.25);
 
       // Happy reaction animation
       mouth.scale.y += ((happy ? 1.4 : 1) - mouth.scale.y) * 0.12;
@@ -395,7 +433,11 @@ function createArtifact(
     const to = anchorPose(stage + 1);
     root.position.set(THREE.MathUtils.lerp(from.x, to.x, blend), THREE.MathUtils.lerp(from.y, to.y, blend), 0);
     root.scale.setScalar(THREE.MathUtils.lerp(from.scale, to.scale, blend));
-    if (face.visible) face.rotation.y = Math.atan2(camera.position.x - root.position.x, camera.position.z) + pointerX * 0.025;
+    if (face.visible) {
+      const cameraYaw = Math.atan2(camera.position.x - root.position.x, camera.position.z);
+      face.rotation.y = cameraYaw + smoothGazeX * 0.16;
+      face.rotation.x = -smoothGazeY * 0.12;
+    }
     scene.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
 
@@ -479,6 +521,16 @@ function createArtifact(
 
   const handlePointerClick = (e: MouseEvent) => {
     const p = progressRef.current;
+    if (p > 1.65 && face.visible) {
+      pointerPos.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointerPos.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointerPos, camera);
+      const hits = raycaster.intersectObjects([faceShell, leftEye, rightEye, nose, mouth], true);
+      if (hits.length > 0) {
+        onCompanionClick?.();
+      }
+      return;
+    }
     if (p < 0.35 || p > 1.65) return;
     pointerPos.x = (e.clientX / window.innerWidth) * 2 - 1;
     pointerPos.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -499,8 +551,8 @@ function createArtifact(
 
   return {
     setPointer(x, y) {
-      pointerX = x;
-      pointerY = y;
+      pointerPixelX = x;
+      pointerPixelY = y;
     },
     setHappy(value) {
       happy = value;
@@ -511,6 +563,7 @@ function createArtifact(
     destroy() {
       cancelAnimationFrame(frame);
       window.removeEventListener('click', handlePointerClick);
+      window.removeEventListener('pointermove', onWindowPointerMove);
       observer.disconnect();
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
@@ -570,6 +623,8 @@ export function RoundTableExperience() {
     sceneRef.current?.setActiveRoleIndex(index);
   }, []);
 
+  const activateCompanionRef = useRef<() => void>(() => {});
+
   // Initialize 3D Canvas
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -579,6 +634,7 @@ export function RoundTableExperience() {
       roleButtonsRef,
       anchorsRef,
       handleRoleSelect,
+      () => activateCompanionRef.current(),
     );
     return () => sceneRef.current?.destroy();
   }, [handleRoleSelect]);
@@ -771,10 +827,13 @@ export function RoundTableExperience() {
   // Activate Companion voice and happy animation
   const activateCompanion = useCallback(() => {
     if (voiceBusyRef.current) return;
+    setCompanionHappy(true);
+    sceneRef.current?.setHappy(true);
     voiceBusyRef.current = true;
     setVoiceBusy(true);
     setCompanionStartSignal((signal) => signal + 1);
   }, []);
+  activateCompanionRef.current = activateCompanion;
 
   // Keyboard arrow navigation
   useEffect(() => {
