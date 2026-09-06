@@ -768,6 +768,7 @@ export default function ConversationComponent({
               aria-label={isEnabled ? 'Mute microphone' : 'Unmute microphone'}
               enabledColor="hsl(var(--primary))"
               disabledColor="hsl(var(--destructive))"
+              showWaveform={true}
             />
           </div>
           <MicrophoneSelector localMicrophoneTrack={localMicrophoneTrack} />
