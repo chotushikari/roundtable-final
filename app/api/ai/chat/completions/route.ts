@@ -57,7 +57,10 @@ export async function POST(request: Request) {
   const receivedAt = Date.now();
   try {
     const session = await requireLlmSession(request);
-    if (!['ready', 'in_progress'].includes(session.status)) throw new Error('Session is not active');
+    if (!['ready', 'starting', 'in_progress'].includes(session.status)) throw new Error('Session is not active');
+    if (session.status === 'starting') {
+      await interviewStore.updateSession(session.id, { status: 'in_progress' }).catch(() => {});
+    }
     if (session.phase === 'wrap_up') {
       const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
       if (version?.definition.demoMode) return sseResponse(DEMO_CLOSING);

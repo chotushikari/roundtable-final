@@ -57,7 +57,7 @@ export async function processDemoAnswer(input: {
     if (analysis) return analysis.responseText;
   }
   const session = await interviewStore.getSession(input.session.id);
-  if (!session || !['ready', 'in_progress'].includes(session.status)) throw new Error('Session is not active');
+  if (!session || !['ready', 'starting', 'in_progress'].includes(session.status)) throw new Error('Session is not active');
   const question = demoQuestion(session);
   const delivered = events.some((event) => event.type === 'question.delivered'
     && event.payload.questionId === question.id);

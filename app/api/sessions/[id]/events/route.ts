@@ -58,10 +58,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           ? 'degraded'
           : 'disconnected';
       const fresh = await interviewStore.getSession(id);
-      if (fresh) await interviewStore.updateSession(id, {
-        connectionHealth,
-        stateVersion: fresh.stateVersion + 1,
-      }, fresh.stateVersion);
+      if (fresh && fresh.connectionHealth !== connectionHealth) {
+        await interviewStore.updateSession(id, {
+          connectionHealth,
+        }).catch(() => {});
+      }
     }
     await interviewStore.appendEvent(id, event.type.toLocaleLowerCase(), sanitize(event.type, event.payload));
     return NextResponse.json({ accepted: true }, { status: 202 });

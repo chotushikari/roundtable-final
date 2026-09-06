@@ -5,6 +5,8 @@ import { apiError } from '@/lib/http';
 import { interviewStore } from '@/lib/interview-store';
 import { createOpaqueToken, hashToken } from '@/lib/security';
 
+export const maxDuration = 60;
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -13,7 +15,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ agentId: session.agoraAgentId, status: session.status });
     }
     if (session.status === 'starting') {
-      return NextResponse.json({ agentId: null, status: 'starting' }, { status: 202 });
+      // If another request is currently starting the agent, wait up to 10s for it to finish.
+      for (let i = 0; i < 20; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const check = await interviewStore.getSession(id);
+        if (check?.agoraAgentId && check.status === 'in_progress') {
+          return NextResponse.json({ agentId: check.agoraAgentId, status: check.status });
+        }
+        if (check?.status !== 'starting') break;
+      }
+      const latest = await interviewStore.getSession(id);
+      if (latest?.agoraAgentId && latest.status === 'in_progress') {
+        return NextResponse.json({ agentId: latest.agoraAgentId, status: latest.status });
+      }
+      return NextResponse.json({ agentId: latest?.agoraAgentId ?? null, status: latest?.status ?? 'starting' }, { status: 202 });
     }
     if (session.status !== 'ready') throw new Error('Session is not available to start');
 
@@ -41,27 +56,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         demoMode: version.definition.demoMode,
       });
       const fresh = (await interviewStore.getSession(id)) ?? session;
-      if (fresh.status !== 'starting') {
+      if (fresh.status === 'completed' || fresh.status === 'failed') {
         await stopInterviewAgent(agentId).catch(() => {});
-        throw new Error('Session changed while the agent was starting');
+        throw new Error('Session is no longer active');
       }
+      // Authoritatively update session with agentId and move to in_progress.
+      // Do not use optimistic locking here to avoid race conditions with telemetry/connection events.
       const updated = await interviewStore.updateSession(id, {
         agoraAgentId: agentId,
         status: 'in_progress',
-        startedAt: new Date().toISOString(),
+        startedAt: fresh.startedAt || new Date().toISOString(),
         stateVersion: fresh.stateVersion + 1,
-      }, fresh.stateVersion);
-      await interviewStore.appendEvent(id, 'session.started', {}).catch(() => {});
+      });
+      await interviewStore.appendEvent(id, 'session.started', { agentId }).catch(() => {});
       return NextResponse.json({ agentId, status: updated.status });
     } catch (error) {
-      if (agentId) await stopInterviewAgent(agentId).catch(() => {});
-      const fresh = await interviewStore.getSession(id);
+      console.error('[sessions/start] agent start failure:', { id, agentId, error });
+      // Only stop the agent if the session did NOT transition to in_progress
+      if (agentId) {
+        const latest = await interviewStore.getSession(id).catch(() => null);
+        if (latest?.status !== 'in_progress') {
+          await stopInterviewAgent(agentId).catch(() => {});
+        }
+      }
+      const fresh = await interviewStore.getSession(id).catch(() => null);
       if (fresh?.status === 'starting') {
         await interviewStore.updateSession(id, {
           status: 'failed',
           connectionHealth: 'disconnected',
           stateVersion: fresh.stateVersion + 1,
-        }, fresh.stateVersion).catch(() => {});
+        }).catch(() => {});
       }
       await interviewStore.appendEvent(id, 'session.start_failed', {
         message: error instanceof Error ? error.message : 'unknown',

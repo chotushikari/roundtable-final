@@ -202,11 +202,24 @@ export default function LandingPage({
         setShowConversation(true);
         void agentStartPromise.then(({ ok, data }) => {
           if (!ok) {
-            setAgentJoinError(true);
-            setError(data.error ?? 'The AI interviewer could not join.');
+            fetch(`/api/sessions/${responseData.sessionId}`)
+              .then((res) => res.ok ? res.json() : null)
+              .then((sessionData) => {
+                if (sessionData?.session?.status === 'in_progress') {
+                  setAgentJoinError(false);
+                  return;
+                }
+                setAgentJoinError(true);
+                setError(data?.error ?? 'The AI interviewer could not join.');
+              })
+              .catch(() => {
+                setAgentJoinError(true);
+                setError(data?.error ?? 'The AI interviewer could not join.');
+              });
             return;
           }
           if (data.agentId) {
+            setAgentJoinError(false);
             setAgoraData((current) => current ? { ...current, agentId: data.agentId } : current);
           }
         }).catch((startError) => {
