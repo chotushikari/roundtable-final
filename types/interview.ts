@@ -408,8 +408,22 @@ export interface CompanyInterviewReport {
   unresolvedContradictions: FinalAssessment['unresolvedContradictions'];
   transcript: Array<Pick<TranscriptTurnRecord, 'id' | 'sequence' | 'speaker' | 'speakerRole' | 'text' | 'status' | 'createdAt'> & { evidenceReferences: string[] }>;
   workspace: {
-    code: { available: boolean; version: number | null; language: string | null; nonEmptyLines: number; functions: string[] };
-    canvas: { available: boolean; version: number | null; elementCount: number; labels: string[]; arrowCount: number };
+    code: {
+      available: boolean;
+      version: number | null;
+      language: string | null;
+      nonEmptyLines: number;
+      functions: string[];
+      source?: string | null;
+    };
+    canvas: {
+      available: boolean;
+      version: number | null;
+      elementCount: number;
+      labels: string[];
+      arrowCount: number;
+      elements?: unknown[];
+    };
   };
   integrations: {
     linear: {

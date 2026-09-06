@@ -22,8 +22,17 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function codeSummary(artifact: WorkspaceArtifactRecord | null): CompanyInterviewReport['workspace']['code'] {
   const content = record(artifact?.content);
-  const source = typeof content?.source === 'string' ? content.source : '';
-  const language = typeof content?.language === 'string' ? content.language : null;
+  const checkpoint = record(content?.checkpoint);
+  const source = typeof content?.source === 'string' && content.source.trim()
+    ? content.source
+    : typeof checkpoint?.source === 'string'
+      ? checkpoint.source
+      : '';
+  const language = typeof content?.language === 'string'
+    ? content.language
+    : typeof checkpoint?.language === 'string'
+      ? checkpoint.language
+      : null;
   const functions = [...source.matchAll(/(?:^|\n)\s*(?:async\s+)?(?:function\s+|def\s+|const\s+)([A-Za-z_$][\w$]*)/g)]
     .map((match) => match[1])
     .slice(0, 12);
@@ -33,13 +42,21 @@ function codeSummary(artifact: WorkspaceArtifactRecord | null): CompanyInterview
     language,
     nonEmptyLines: source.split('\n').filter((line) => line.trim()).length,
     functions,
+    source: source.trim() ? source : null,
   };
 }
 
 function canvasSummary(artifact: WorkspaceArtifactRecord | null): CompanyInterviewReport['workspace']['canvas'] {
   const content = record(artifact?.content);
   const freehand = record(content?.freehand);
-  const elements = Array.isArray(freehand?.elements) ? freehand.elements : [];
+  const checkpoint = record(content?.checkpoint);
+  const checkpointFreehand = record(checkpoint?.freehand);
+  const rawElements = Array.isArray(freehand?.elements) && freehand.elements.length > 0
+    ? freehand.elements
+    : Array.isArray(checkpointFreehand?.elements)
+      ? checkpointFreehand.elements
+      : [];
+  const elements = rawElements;
   const labels = elements
     .filter((element): element is Record<string, unknown> => Boolean(record(element)))
     .filter((element) => element.type === 'text' && typeof element.text === 'string')
@@ -53,6 +70,7 @@ function canvasSummary(artifact: WorkspaceArtifactRecord | null): CompanyIntervi
     elementCount: elements.length,
     labels,
     arrowCount,
+    elements: elements.length > 0 ? elements : [],
   };
 }
 
