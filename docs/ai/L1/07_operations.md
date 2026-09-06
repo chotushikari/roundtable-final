@@ -2,7 +2,7 @@
 
 Deploy as one Next.js app on Vercel and one Supabase project. Set all variables from `env.local.example`; keep certificate, service key, signing secret, Groq key, E2B key, and webhook secret server-only. Set `APP_BASE_URL` to the public HTTPS origin so Agora can reach the custom LLM route.
 
-On Vercel, `VERCEL_PROJECT_PRODUCTION_URL` (falling back to `VERCEL_URL`) takes precedence for Agora callbacks and invitation links. This prevents a local or expired tunnel copied through `APP_BASE_URL` from breaking production. Supabase Authentication must allow the deployed `/company` redirect URL.
+On Vercel, `VERCEL_PROJECT_PRODUCTION_URL` (falling back to `VERCEL_URL`) takes precedence for Agora callbacks and invitation links. This prevents a local or expired tunnel copied through `APP_BASE_URL` from breaking production. Enable only Google in Supabase Authentication, configure its Google OAuth client, and allow the deployed `/company` plus `/company/analysis/**` application redirect URLs.
 
 For a time-limited public submission, `NEXT_PUBLIC_DISABLE_COMPANY_AUTH=true` bypasses the company email gate without switching to process-local storage. The server creates or reuses `PUBLIC_DEMO_ORGANIZATION_ID` (or the fixed demo UUID). This deliberately exposes that organization's company dashboard and completed reports; unset the flag after judging.
 

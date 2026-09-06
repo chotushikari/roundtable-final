@@ -32,11 +32,11 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - Server SDK: `agora-agents` for managed agent session startup
 - Product APIs: company interviews, signed invitations, sessions, artifacts, assessment release, MCP, and Agora webhooks live in `app/api`
 - Voice pipeline: Agora-managed STT/TTS with an authenticated RoundTable custom LLM/controller endpoint
-- Persistence and auth: Supabase in production; process-local memory is development/test fallback only
+- Persistence and auth: Google-only Supabase Auth for interviewers, with one idempotently provisioned private organization per authenticated user; process-local memory is development/test fallback only
 - Submission auth bypass: `NEXT_PUBLIC_DISABLE_COMPANY_AUTH=true` deliberately exposes one fixed company organization while retaining Supabase persistence; it is temporary and must never be used with real candidate data.
 - Workspaces: Monaco code and one Excalidraw canvas with private checkpoints; server-selected E2B execution
 - Presentation: a browser-rendered role-aware AI avatar follows the server-owned active panel role and agent state; it does not create a video stream or another agent.
-- Public presentation: the homepage is a continuously interpolated, looping Three.js/Anime.js narrative with Manrope and IBM Plex Mono typography, a shadcn voice work surface, a one-question Agora interview sample, and a separate bounded Agora companion greeting. Production must opt in with `ENABLE_HOMEPAGE_VOICE_DEMO=true`.
+- Public presentation: the homepage is a three-scene Three.js/Anime.js narrative with layout-anchored artifacts, a readable one-question Agora sample, and a separate bounded Agora companion greeting. Stop at scene three and pause scene navigation during voice sessions. Never add browser TTS fallback, fabricated transcripts, or hardcoded live connection/latency claims. Perspective buttons are descriptive previews, not live role selection. Production must opt in with `ENABLE_HOMEPAGE_VOICE_DEMO=true`.
 - Candidate presentation: invitation, consent, live interview, workspace, completion, and loading states share the Supabase-dark visual system. Keep server-owned progression internal rather than rendering a speculative role-answer counter.
 - Resume ownership: recruiters may attach optional plain-text resume content immediately before publishing an invitation. The public candidate consent screen does not accept resume uploads. Resume claims remain untrusted question seeds and never become evidence.
 - Optional camera interaction: a candidate-consented short clip is reviewed only for the prompted interaction; no raw media is persisted and it is never identity, voice-authenticity, deception, or hiring inference.
@@ -76,6 +76,8 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - `app/api/webhooks/agora/route.ts`: signed lifecycle reconciliation and finalization.
 - `components/LandingPage.tsx`: session bootstrap, RTM setup, provider wiring, and conversation lifecycle.
 - `components/RoundTableExperience.tsx`: public pinned-scroll landing narrative, Three.js artifact, five-role transformation, compact voice sample, and cursor-aware companion.
+- `components/CompanyDashboard.tsx`: Google-only company auth, interview creation, recruiter-side resume attachment, explicit invitation copy, and session pipeline.
+- `components/CompanyAnalysisPage.tsx`: separately routed authenticated completed-report loader and release flow.
 - `components/ConversationComponent.tsx`: RTC join, mic publication, `AgoraVoiceAI` init, transcript state, and renewals.
 - `components/QuickstartConversationLayout.tsx`: in-call header, transcript rail, and controls dock.
 - `components/QuickstartPipelineMetrics.tsx`: per-stage latency chips from `AGENT_METRICS`.

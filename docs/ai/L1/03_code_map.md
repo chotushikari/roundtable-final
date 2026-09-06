@@ -8,7 +8,8 @@
 - `components/LandingPage.tsx`, `ConversationComponent.tsx`: candidate bootstrap and Agora lifecycle.
 - `components/RoundTableExperience.tsx` and its CSS module: public scroll narrative, Three.js artifact, five-role labels, embedded compact Agora sample, and companion interaction.
 - `app/page.tsx`, `app/loading.tsx`: public experience entry point and reduced-motion-safe transition mark.
-- `components/CompanyDashboard.tsx`: company auth/create/publish surface and completed-report loader.
+- `components/CompanyDashboard.tsx`: Google-only interviewer auth, auto-provisioned private workspace, interview builder, recruiter resume/link flow, and live/completed session pipeline.
+- `components/CompanyAnalysisPage.tsx`, `app/company/analysis/[sessionId]`: authenticated standalone completed-analysis route and candidate-summary release flow.
 - `components/CompanyInterviewReportView.tsx`: evidence-linked Overview, Competencies, Panel views, Transcript, and Workspace report sections.
 - `components/InterviewWorkspace.tsx`: Monaco, one embedded Excalidraw canvas, autosaved drafts, and checkpoints.
 - `app/api/interviews`, `invitations`, `sessions`: product and lifecycle APIs, including responsive background agent startup.

@@ -65,7 +65,7 @@ export async function requireCompanyContext(request: Request): Promise<{
     return { userId: PUBLIC_COMPANY_USER_ID, organizationId };
   }
 
-  const { userId, admin } = await requireSupabaseUser(request);
+  const { userId, admin, email, displayName } = await requireSupabaseUser(request);
 
   if (!admin) {
     return {
@@ -76,25 +76,33 @@ export async function requireCompanyContext(request: Request): Promise<{
     };
   }
 
-  const { data: membership, error: membershipError } = await admin
-    .from('memberships')
-    .select('organization_id')
-    .eq('user_id', userId)
-    .limit(1)
-    .single();
-  if (membershipError || !membership) {
-    throw new Error('Company membership is required');
-  }
+  // A Google interviewer owns one private workspace. Using the auth user UUID
+  // as the organization UUID makes provisioning idempotent and prevents a user
+  // from accidentally landing in another interviewer's first membership.
+  const workspaceName = `${displayName || email?.split('@')[0] || 'Interviewer'} workspace`.slice(0, 160);
+  const { error: organizationError } = await admin.from('organizations').upsert(
+    { id: userId, name: workspaceName },
+    { onConflict: 'id', ignoreDuplicates: true },
+  );
+  if (organizationError) throw new Error(`Company workspace setup failed: ${organizationError.message}`);
+
+  const { error: membershipError } = await admin.from('memberships').upsert(
+    { organization_id: userId, user_id: userId, role: 'owner' },
+    { onConflict: 'organization_id,user_id', ignoreDuplicates: true },
+  );
+  if (membershipError) throw new Error(`Company membership setup failed: ${membershipError.message}`);
 
   return {
     userId,
-    organizationId: String(membership.organization_id),
+    organizationId: userId,
   };
 }
 
 export async function requireSupabaseUser(request: Request): Promise<{
   userId: string;
   admin: SupabaseClient | null;
+  email: string | null;
+  displayName: string | null;
 }> {
   const admin = getSupabaseAdmin();
   const authorization = request.headers.get('authorization');
@@ -106,12 +114,22 @@ export async function requireSupabaseUser(request: Request): Promise<{
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Supabase is not configured');
     }
-    return { userId: PUBLIC_COMPANY_USER_ID, admin: null };
+    return { userId: PUBLIC_COMPANY_USER_ID, admin: null, email: null, displayName: null };
   }
 
   if (!token) throw new Error('Company authentication is required');
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data.user) throw new Error('Invalid company session');
+  const providers = Array.isArray(data.user.app_metadata?.providers)
+    ? data.user.app_metadata.providers
+    : [data.user.app_metadata?.provider];
+  if (!providers.includes('google')) throw new Error('Google interviewer authentication is required');
 
-  return { userId: data.user.id, admin };
+  const metadata = data.user.user_metadata;
+  const displayName = typeof metadata?.full_name === 'string'
+    ? metadata.full_name
+    : typeof metadata?.name === 'string'
+      ? metadata.name
+      : null;
+  return { userId: data.user.id, admin, email: data.user.email ?? null, displayName };
 }

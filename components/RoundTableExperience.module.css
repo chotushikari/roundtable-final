@@ -1,289 +1,868 @@
 .page {
   --green: #3ecf8e;
-  --green-deep: #2eb67d;
+  --green-deep: #24b47e;
+  --green-soft: #4ade80;
   --ink: #ededed;
-  --muted: #898989;
-  --line: #2a2a2a;
-  --surface: #171717;
-  min-height: 100vh;
-  background: #101010;
-  color: var(--ink);
-  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
-}
+  --ink-secondary: #a3a3a3;
+  --muted: #737373;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --surface: #141414;
+  --surface-elevated: #1a1a1a;
+  --canvas: #0c0c0c;
 
-.scrollTrack { height: 300vh; }
-
-.stickyStage {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  min-height: 42rem;
+  width: 100vw;
+  height: 100dvh;
+  position: relative;
   overflow: hidden;
-  isolation: isolate;
-  background:
-    linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px),
-    #101010;
-  background-size: 64px 64px;
-  background-position: center;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: text;
 }
 
-.stickyStage::before,
-.stickyStage::after {
-  content: '';
-  position: absolute;
-  z-index: 1;
+/* Supabase Ambient Glows & Grid Background */
+.backgroundLayers {
+  position: fixed;
+  inset: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
-.stickyStage::before { inset: 0; border: 1px solid rgba(255,255,255,.035); }
-.stickyStage::after {
+/* Top Spotlight and Center Core Ambient Glow */
+.ambientGlow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1100px 500px at 50% -5%, rgba(62, 207, 142, 0.13), transparent 70%),
+    radial-gradient(750px 750px at 50% 50%, rgba(62, 207, 142, 0.05), transparent 70%),
+    radial-gradient(800px 600px at 80% 60%, rgba(36, 180, 126, 0.04), transparent 60%);
+}
+
+/* Subtle Supabase 56px Grid */
+.gridPattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: center center;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, #000 60%, transparent 100%);
+}
+
+/* Supabase Vertical Column Guidelines */
+.guidelines {
+  position: fixed;
   top: 0;
   bottom: 0;
   left: 50%;
   width: min(100%, 82rem);
   transform: translateX(-50%);
-  border-inline: 1px solid rgba(255,255,255,.035);
+  border-inline: 1px solid rgba(255, 255, 255, 0.045);
+  pointer-events: none;
+  z-index: 1;
 }
 
-.brand {
-  position: absolute;
-  z-index: 20;
-  top: 1.65rem;
+/* Brand header centered at top */
+.brandHeader {
+  position: fixed;
+  top: 1.85rem;
   left: 50%;
   transform: translateX(-50%);
-  color: #f2f2f2;
-  font-size: .84rem;
-  font-weight: 620;
-  letter-spacing: -.025em;
-  white-space: nowrap;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #ededed;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  background: rgba(18, 18, 18, 0.88);
+  padding: 0.42rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
-.brand::before {
-  content: '';
-  display: inline-block;
-  width: .48rem;
-  height: .48rem;
-  margin-right: .52rem;
+
+.brandDot {
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 0 4px rgba(62,207,142,.1);
+  box-shadow: 0 0 6px rgba(62, 207, 142, 0.4);
 }
 
-.canvas { position: absolute; z-index: 2; inset: 14% 8% 10%; width: 84%; height: 76%; }
-.scene {
-  position: absolute;
-  z-index: 5;
+/* Three.js canvas (fixed in background) */
+.canvas {
+  position: fixed;
   inset: 0;
-  opacity: 0;
-  visibility: hidden;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2;
   pointer-events: none;
-  will-change: opacity, transform;
 }
-.scene:first-of-type { opacity: 1; visibility: visible; pointer-events: auto; }
 
-.eyebrow {
-  margin: 0 0 .85rem;
-  color: var(--green);
-  font-size: .68rem;
-  font-weight: 650;
-  letter-spacing: .135em;
-  text-transform: uppercase;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+/* ==========================================================================
+   Horizontal Scroll Container (ZERO vertical movement)
+   ========================================================================== */
+.viewport {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  display: block;
+  z-index: 10;
+  scroll-behavior: auto !important;
+  scroll-snap-type: none;
 }
-.heroCopy, .panelHeading, .agoraHeading {
+
+/* Hide scrollbar while preserving smooth horizontal wheel functionality */
+.viewport::-webkit-scrollbar {
+  display: none;
+}
+.viewport {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.screen {
+  width: 100vw;
+  height: 100vh;
+  flex-shrink: 0;
+  scroll-snap-align: start;
   position: absolute;
-  top: 12%;
-  left: 50%;
-  width: min(90vw, 58rem);
-  transform: translateX(-50%);
-  text-align: center;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  box-sizing: border-box;
 }
-.heroCopy h1, .panelHeading h2, .agoraHeading h2 {
+
+.screen[data-scene="1"], .screen[data-scene="2"] { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* Common Eyebrow */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+  color: var(--green);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   PAGE 1: Hero
+   ========================================================================== */
+.heroContent {
+  position: relative;
+  z-index: 20;
+  text-align: center;
+  width: min(90vw, 86rem);
+  height: calc(100dvh - 12rem);
+  margin: 0;
+  align-self: flex-start;
+  margin-top: 5rem;
+}
+.heroArtifactSlot {
+  width: min(100%, 38rem);
+  height: clamp(16rem, 43vh, 30rem);
+  margin: 1.5rem auto 0;
+}
+
+.heroTitle {
   margin: 0;
   color: #ededed;
-  font-size: clamp(2.65rem, 5.75vw, 5.25rem);
-  font-weight: 430;
-  line-height: .98;
-  letter-spacing: -.06em;
+  font-size: clamp(2.6rem, 5.6vw, 4.9rem);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.055em;
 }
-.panelHeading h2, .agoraHeading h2 { font-size: clamp(2.2rem, 4.1vw, 3.9rem); }
-.panelHeading { top: 11%; left: 7%; width: min(48vw, 43rem); transform: none; text-align: left; }
-.panelHeading h2 { font-size: clamp(2.2rem, 4vw, 3.75rem); }
 
-.heroActions {
-  position: absolute;
-  z-index: 10;
-  bottom: 9%;
-  left: 50%;
-  display: flex;
-  transform: translateX(-50%);
-  gap: .65rem;
-}
-.primaryButton, .secondaryButton {
-  height: 2.55rem;
-  border-radius: 6px;
-  padding-inline: 1rem;
-  font-size: .8rem;
-  box-shadow: none;
-}
-.primaryButton { background: var(--green-deep); color: #071810; }
-.primaryButton:hover { background: var(--green); }
-.secondaryButton { border-color: #393939; background: #181818; color: #ededed; }
-.secondaryButton:hover { border-color: #4a4a4a; background: #1e1e1e; color: #fff; }
-
-.scrollCue {
-  position: absolute;
-  bottom: 1.5rem;
-  left: 50%;
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  transform: translateX(-50%);
-  place-items: center;
-  border: 1px solid #333;
-  border-radius: 50%;
-  background: #171717;
-  color: #a5a5a5;
-  cursor: pointer;
-}
-.scrollCue:hover { border-color: #555; color: #fff; }
-.scrollCue svg { width: .9rem; }
-
-.roleMap {
-  position: absolute;
-  z-index: 7;
-  top: 42%;
-  left: 73%;
-  width: min(29vw, 24rem);
-  height: min(20vw, 15rem);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-.roleLabel {
-  position: absolute;
-  padding: .46rem .68rem;
-  border: 1px solid #353535;
-  border-radius: 999px;
-  background: rgba(23,23,23,.94);
-  box-shadow: 0 10px 30px rgba(0,0,0,.22);
-  color: #d7d7d7;
-  font-size: .68rem;
-  font-weight: 540;
-  white-space: nowrap;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-}
-.roleNorth { top: 0; left: 50%; transform: translate(-50%, -50%); }
-.roleEast { top: 34%; right: 0; transform: translate(50%, -50%); border-color: rgba(62,207,142,.5); color: var(--green); }
-.roleSouthEast { right: 10%; bottom: 0; transform: translate(50%, 50%); }
-.roleSouthWest { bottom: 0; left: 10%; transform: translate(-50%, 50%); }
-.roleWest { top: 34%; left: 0; transform: translate(-50%, -50%); }
-
-.demoCard {
-  position: absolute;
-  z-index: 11;
-  right: auto;
-  bottom: clamp(1.5rem, 5vw, 4rem);
-  left: clamp(2rem, 7vw, 7rem);
-  width: min(36rem, 40vw);
-  min-height: 20rem;
-  transform: none;
-  overflow: hidden;
-  border-color: #303030;
-  border-radius: 14px;
-  background: #171717;
-  color: #ededed;
-  box-shadow: 0 28px 80px rgba(0,0,0,.34);
-}
-.demoCardHeader {
-  display: flex;
-  min-height: auto;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding: .78rem 1rem;
-  border-bottom: 1px solid #292929;
-  color: #b8b8b8;
-  font-size: .68rem;
-  font-weight: 560;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-}
-.demoCardHeader > span:first-child { display: flex; align-items: center; gap: .45rem; }
-.agoraDot { color: var(--green); }
-.demoLoading { display: grid; min-height: 18rem; place-items: center; color: var(--muted); font-size: .78rem; }
-
-.companionTarget {
-  position: absolute;
-  z-index: 12;
-  left: 50%;
-  top: 53%;
-  width: clamp(11rem, 22vw, 15rem);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  border: 0;
-  border-radius: 50%;
-  padding: 0;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-}
-.companionTarget:focus-visible { outline: 2px solid var(--green); outline-offset: 6px; }
-.companionPrompt {
-  position: absolute;
-  bottom: -3.25rem;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  transform: translateX(-50%);
-  border: 1px solid #343434;
-  border-radius: 999px;
-  padding: .52rem .75rem;
-  background: rgba(23,23,23,.95);
-  box-shadow: 0 10px 32px rgba(0,0,0,.28);
-  color: #d7d7d7;
-  font-size: .68rem;
-  font-weight: 550;
-  white-space: nowrap;
-}
-.companionPrompt svg { width: .85rem; height: .85rem; color: var(--green); }
-.companionTranscript {
-  position: absolute;
-  z-index: 11;
-  bottom: 7%;
-  left: 50%;
-  width: min(90vw, 37rem);
-  min-height: 3.5rem;
-  transform: translateX(-50%);
-  border-top: 1px solid var(--line);
-  padding: 1rem 1.25rem 0;
-  color: var(--muted);
-  font-size: .8rem;
-  line-height: 1.55;
+.wordContainer {
+  display: block;
+  position: relative;
+  min-width: 180px;
+  vertical-align: bottom;
   text-align: center;
 }
 
-.progress { position: absolute; z-index: 20; right: 1.2rem; top: 50%; display: flex; transform: translateY(-50%); flex-direction: column; gap: .4rem; }
-.progress span { width: 3px; height: 14px; border-radius: 99px; background: #333; transition: height 250ms ease, background 250ms ease; }
-.progress span[data-current='true'] { height: 28px; background: var(--green-deep); }
-
-@media (max-width: 900px) {
-  .scrollTrack { height: 285vh; }
-  .stickyStage { min-height: 40rem; }
-  .canvas { inset: 17% 0 14%; width: 100%; height: 69%; }
-  .heroCopy, .panelHeading, .agoraHeading { top: 11%; }
-  .heroCopy h1 { font-size: clamp(2.45rem, 12vw, 4rem); }
-  .panelHeading h2, .agoraHeading h2 { font-size: clamp(2rem, 9vw, 3.2rem); }
-  .panelHeading { top: 10%; left: 50%; width: 90vw; transform: translateX(-50%); text-align: center; }
-  .heroActions { bottom: 9%; width: calc(100% - 2rem); justify-content: center; }
-  .roleMap { top: 34%; left: 50%; width: 72vw; height: 48vw; }
-  .roleLabel { font-size: .6rem; padding: .38rem .52rem; }
-  .demoCard { right: 1rem; bottom: 1rem; left: 1rem; width: auto; min-height: 20rem; transform: none; }
-  .progress { right: .55rem; }
-  .companionTarget { top: 52%; }
+.rotatingWord {
+  display: inline-block;
+  color: var(--green);
+  font-weight: 500;
+  white-space: nowrap;
+  text-shadow: 0 0 24px rgba(62, 207, 142, 0.28);
 }
 
+.heroActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin: 0 auto;
+  width: min(100%, 70rem);
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 25;
+}
+
+.primaryBtn {
+  background: var(--green);
+  color: #071810;
+  font-weight: 600;
+  font-size: 0.85rem;
+  height: 2.7rem;
+  padding: 0 1.3rem;
+  border-radius: 6px;
+  border: 1px solid rgba(62, 207, 142, 0.45);
+  box-shadow: 0 2px 12px rgba(62, 207, 142, 0.2);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.primaryBtn:hover {
+  background: var(--green-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(62, 207, 142, 0.32);
+}
+
+.secondaryBtn {
+  background: #171717;
+  color: #ededed;
+  font-weight: 500;
+  font-size: 0.85rem;
+  height: 2.7rem;
+  padding: 0 1.3rem;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.secondaryBtn:hover {
+  background: #202020;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.scrollHorizontalCue {
+  position: absolute;
+  bottom: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(20, 20, 20, 0.7);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.72rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 25;
+  backdrop-filter: blur(8px);
+}
+
+.scrollHorizontalCue:hover {
+  border-color: #4a4a4a;
+  color: #ededed;
+}
+
+/* ==========================================================================
+   PAGE 2: One candidate, 5 roles (Left) + Interactive Mock (Right)
+   ========================================================================== */
+.panelContainer {
+  display: grid;
+  grid-template-columns: minmax(0, 43fr) minmax(0, 57fr);
+  align-items: center;
+  width: min(94vw, 94rem);
+  gap: clamp(2rem, 4vw, 4rem);
+  position: relative;
+  z-index: 20;
+}
+
+.panelLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.constellationSlot {
+  width: 100%;
+  height: clamp(24rem, 56vh, 36rem);
+}
+
+.panelHeading {
+  text-align: left;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+.panelTitle {
+  margin: 0;
+  color: #ededed;
+  font-size: clamp(2.1rem, 3.8vw, 3.4rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.05em;
+}
+
+/* Constellation Role Badges on Page 2 (3D Projected Overlay) */
+.constellationMap {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.roleChip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.94);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  color: #d4d4d4;
+  font-size: 0.72rem;
+  font-weight: 550;
+  white-space: nowrap;
+  backdrop-filter: blur(12px);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, left, top, opacity;
+}
+
+.roleChip:hover {
+  border-color: rgba(62, 207, 142, 0.4);
+  color: #ffffff;
+}
+
+.roleChipDot {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(62, 207, 142, 0.9);
+  margin-right: 0.45rem;
+  vertical-align: middle;
+}
+
+.roleChipActive {
+  border-color: var(--green) !important;
+  color: var(--green) !important;
+  background: rgba(18, 38, 28, 0.96) !important;
+  box-shadow: 0 0 24px rgba(62, 207, 142, 0.42), 0 0 8px rgba(62, 207, 142, 0.25) !important;
+}
+
+/* Codex Style Demo Card (Right Side of Page 2) */
+.panelRight {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+  z-index: 25;
+}
+
+.codexCard {
+  width: min(100%, 30rem);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.codexCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(18, 18, 18, 0.75);
+  font-size: 0.72rem;
+  color: #a8a8a8;
+}
+
+.headerLive {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.agoraBadge {
+  color: var(--green);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.reassuranceBanner {
+  background: rgba(62, 207, 142, 0.08);
+  border-bottom: 1px solid rgba(62, 207, 142, 0.18);
+  padding: 0.55rem 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--green);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+/* ==========================================================================
+   PAGE 3: Powered by Agora Conversational AI & Companion
+   ========================================================================== */
+.agoraContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min(90vw, 82rem);
+  position: relative;
+  z-index: 20;
+}
+
+.agoraHeader {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.agoraTitle {
+  margin: 0.2rem 0 0.6rem;
+  color: #ededed;
+  font-size: clamp(2.2rem, 4.2vw, 3.8rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.05em;
+}
+
+.agoraLogoLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  transition: color 0.2s ease;
+  text-decoration: none;
+}
+
+.agoraLogoLink:hover {
+  color: var(--ink);
+}
+
+.companionContent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  width: 100%;
+  margin-top: 2.5rem;
+}
+
+/* 3D Companion Click Target */
+.companionTargetBox {
+  position: relative;
+  width: clamp(16rem, 29vw, 23rem);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  justify-self: center;
+}
+
+.companionButton {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.companionButton:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 6px;
+}
+
+.companionPromptBadge {
+  position: absolute;
+  bottom: -1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  color: #ededed;
+  font-size: 0.72rem;
+  font-weight: 550;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.companionPromptBadge svg {
+  color: var(--green);
+}
+
+/* Upgraded Agora Voice Engine Showcase Card on Page 3 */
+.agoraEngineCard {
+  width: min(100%, 34rem);
+  background: #121212;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.engineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.15rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(18, 18, 18, 0.9);
+  font-size: 0.72rem;
+  color: #a8a8a8;
+}
+
+.engineStatusBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #3ecf8e;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.engineStatusDot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: #3ecf8e;
+  box-shadow: 0 0 6px rgba(62, 207, 142, 0.5);
+}
+
+.engineBody {
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.transcriptQuoteBox {
+  border-left: 2px solid var(--green);
+  padding: 0.55rem 0.85rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0 6px 6px 0;
+}
+
+.transcriptQuote {
+  margin: 0;
+  color: #ededed;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* Equalizer Bars */
+.equalizerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: #161616;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.equalizerLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: #888888;
+}
+
+.equalizerBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 1.2rem;
+}
+
+.equalizerBar {
+  width: 3px;
+  background: #3ecf8e;
+  border-radius: 2px;
+  height: 4px;
+  transition: height 0.15s ease;
+}
+
+.equalizerActive .equalizerBar:nth-child(1) { animation: eq-wave 0.7s infinite 0.1s; }
+.equalizerActive .equalizerBar:nth-child(2) { animation: eq-wave 0.7s infinite 0.3s; }
+.equalizerActive .equalizerBar:nth-child(3) { animation: eq-wave 0.7s infinite 0.15s; }
+.equalizerActive .equalizerBar:nth-child(4) { animation: eq-wave 0.7s infinite 0.4s; }
+.equalizerActive .equalizerBar:nth-child(5) { animation: eq-wave 0.7s infinite 0.25s; }
+.equalizerActive .equalizerBar:nth-child(6) { animation: eq-wave 0.7s infinite 0.35s; }
+.equalizerActive .equalizerBar:nth-child(7) { animation: eq-wave 0.7s infinite 0.2s; }
+.equalizerActive .equalizerBar:nth-child(8) { animation: eq-wave 0.7s infinite 0.45s; }
+
+@keyframes eq-wave {
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
+}
+
+/* Voice trigger prompt buttons */
+.voicePromptSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.voicePromptTitle {
+  font-size: 0.62rem;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.promptChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.promptChip {
+  background: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #c4c4c4;
+  font-size: 0.68rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.promptChip:hover {
+  background: #222222;
+  border-color: rgba(62, 207, 142, 0.4);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.promptChip svg {
+  color: #3ecf8e;
+}
+
+/* Architecture benchmark metrics */
+.engineMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.engineMetricBox {
+  background: #161616;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.metricNum {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #3ecf8e;
+}
+
+.metricLabel {
+  font-size: 0.55rem;
+  color: #777777;
+}
+
+/* Loop / Return to Page 1 CTA */
+.loopBackSection {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 25;
+}
+
+.loopBackBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: #181818;
+  color: #ededed;
+  border: 1px solid var(--line-strong);
+  padding: 0.55rem 1.2rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.loopBackBtn:hover {
+  background: #222222;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.loopBackBtn svg {
+  color: var(--green);
+}
+
+/* ==========================================================================
+   Navigation Bar & Pagination
+   ========================================================================== */
+.navigationBar {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: rgba(20, 20, 20, 0.9);
+  border: 1px solid var(--line-strong);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.navArrowBtn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: color 0.2s ease;
+}
+
+.navArrowBtn:hover:not(:disabled) {
+  color: #ffffff;
+}
+
+.navArrowBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.navPills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navPill {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navPill:hover {
+  color: #ededed;
+}
+
+.navPillActive {
+  background: rgba(62, 207, 142, 0.15);
+  color: var(--green);
+}
+
+.companionCardTitle { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.25; letter-spacing: -.04em; margin: 0; }
+.companionCardCopy { color: #a3a3a3; font-size: .9rem; line-height: 1.8; margin: .6rem 0 1rem; }
+.page button:focus-visible, .page summary:focus-visible { outline: 2px solid var(--green); outline-offset: 4px; }
+.navPill:disabled, .loopBackBtn:disabled { opacity: .5; cursor: default; }
+.candidateDialogBackdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1.25rem; background: rgba(0,0,0,.7); backdrop-filter: blur(10px); }
+.candidateDialog { position: relative; width: min(100%, 30rem); padding: 2rem; border: 1px solid var(--line-strong); border-radius: 14px; background: #161616; box-shadow: 0 32px 100px rgba(0,0,0,.7); }
+.candidateDialog h2 { margin: .55rem 0 .65rem; font-size: clamp(1.7rem, 4vw, 2.15rem); font-weight: 500; letter-spacing: -.045em; }
+.candidateDialog p { margin: 0; color: var(--ink-secondary); font-size: .86rem; line-height: 1.65; }
+.dialogClose { position: absolute; top: .85rem; right: .85rem; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); background: #1d1d1d; cursor: pointer; }
+.candidateLinkField { display: grid; gap: .48rem; margin-top: 1.5rem; color: #b8b8b8; font-size: .72rem; font-weight: 600; }
+.candidateLinkField input { width: 100%; padding: .78rem .85rem; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--ink); background: #111; font: .75rem var(--font-ibm-plex-mono), monospace; outline: none; }
+.candidateLinkField input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(62,207,142,.12); }
+.candidateLinkError { margin-top: .65rem !important; color: #ee9999 !important; font-size: .75rem !important; }
+.candidateJoinButton { width: 100%; height: 2.8rem; margin-top: 1rem; color: #071810; background: var(--green); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) {
-  .progress span { transition: none; }
-  .scrollTrack { height: 270vh; }
+  .page *, .page *::before, .page *::after { animation: none !important; transition: none !important; }
+}
+/* Narrow screens keep vertical content scrollable; navigation selects the scene. */
+@media (max-width: 960px), (max-height: 650px) {
+  .screen { align-items: flex-start; overflow-y: auto; padding: 6rem 1.25rem 7rem; }
+  .heroContent { margin: 0; height: auto; }
+  .heroArtifactSlot { height: clamp(16rem, 42vh, 25rem); }
+  .heroActions { position: static; transform: none; justify-content: center; margin-top: 1.5rem; }
+  .panelContainer, .companionContent { display: flex; flex-direction: column; gap: 2rem; width: 100%; }
+  .panelLeft { width: 100%; }
+  .panelHeading { text-align: center; margin-bottom: 1rem; }
+  .constellationSlot { height: 15rem; max-width: 25rem; }
+  .panelRight { width: 100%; justify-content: center; }
+  .companionTargetBox { margin: 0 auto 2rem; width: 16rem; flex-shrink: 0; }
+  .agoraContainer { width: 100%; }
+  .heroTitle, .panelTitle, .agoraTitle { font-size: clamp(2rem, 6vw, 3.2rem); }
+  .heroActions { flex-wrap: wrap; }
+  .navigationBar { bottom: 1rem; gap: .5rem; max-width: calc(100vw - 1rem); }
+  .navPills { gap: .15rem; }
+  .navPill { white-space: nowrap; }
+  .brandHeader { top: 1rem; }
+}
+@media (max-width: 960px) {
+  .constellationMap { position: static; display: flex; justify-content: center; flex-wrap: wrap; gap: .5rem; }
+  .roleChip { position: static; transform: none !important; opacity: 1 !important; pointer-events: auto !important; }
 }

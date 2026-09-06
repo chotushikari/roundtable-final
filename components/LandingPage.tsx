@@ -3,7 +3,7 @@
 import { useState, useRef, Suspense, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import { ArrowUp, Mic } from 'lucide-react';
+import { Mic } from 'lucide-react';
 import type { RTMClient } from 'agora-rtm';
 import type {
   AgoraTokenData,
@@ -71,10 +71,12 @@ export default function LandingPage({
   invitationToken,
   variant = 'full',
   startSignal = 0,
+  onActivityChange,
 }: {
   invitationToken?: string;
   variant?: 'full' | 'compact-demo' | 'companion-demo';
   startSignal?: number;
+  onActivityChange?: (active: boolean) => void;
 }) {
   const compactDemo = variant === 'compact-demo';
   const companionDemo = variant === 'companion-demo';
@@ -102,6 +104,12 @@ export default function LandingPage({
   const startInFlightRef = useRef(false);
   const endInFlightRef = useRef(false);
   const lastStartSignalRef = useRef(0);
+
+  useEffect(() => {
+    onActivityChange?.(isLoading || showConversation || isEnding);
+  }, [isLoading, showConversation, isEnding, onActivityChange]);
+
+  useEffect(() => () => onActivityChange?.(false), [onActivityChange]);
 
   useEffect(() => {
     if (!invitationToken) return;
@@ -239,12 +247,12 @@ export default function LandingPage({
   };
 
   useEffect(() => {
-    if (!companionDemo || showConversation || startSignal <= 0 || startSignal === lastStartSignalRef.current) return;
+    if (!embeddedDemo || showConversation || startSignal <= 0 || startSignal === lastStartSignalRef.current) return;
     lastStartSignalRef.current = startSignal;
     void handleStartConversation();
     // The signal is the deliberate trigger. Session state guards duplicate starts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companionDemo, showConversation, startSignal]);
+  }, [embeddedDemo, showConversation, startSignal]);
 
   const handleTokenWillExpire = useCallback(
     async (uid: string): Promise<AgoraRenewalTokens> => {
@@ -366,19 +374,18 @@ export default function LandingPage({
                     <div className="grid h-9 w-9 place-items-center rounded-full border border-[#353535] bg-[#1d1d1d] text-[#3ecf8e]">
                       <Mic size={15} />
                     </div>
-                    <p className="mt-4 max-w-sm text-[20px] font-normal leading-7 tracking-[-0.035em] text-[#ededed]">What did you build that made something better?</p>
-                    <p className="mt-2 text-xs text-[#777]">One answer. One grounded response.</p>
+                    <p className="mt-4 max-w-sm text-[26px] font-normal leading-9 tracking-[-0.035em] text-[#ededed]">What did you build that made something better?</p>
+                    <p className="mt-3 text-sm text-[#a3a3a3]">One question. Your voice. A thoughtful response.</p>
                   </div>
-                  <div className="flex h-14 items-center rounded-xl border border-[#303030] bg-[#202020] px-3 shadow-[0_12px_34px_rgba(0,0,0,.22)]">
-                    <span className="flex-1 pl-1 text-xs text-[#777]">Talk to RoundTable</span>
+                  <div className="flex min-h-14 flex-wrap items-center gap-3 rounded-xl border border-[#303030] bg-[#202020] p-3 shadow-[0_12px_34px_rgba(0,0,0,.22)]">
+                    <span className="flex-1 pl-1 text-sm text-[#a3a3a3]">Be yourself. Take your time.</span>
                     <Button
-                    size="icon"
                     disabled={isLoading}
                     onClick={handleStartConversation}
-                    className="h-8 w-8 rounded-full bg-[#3ecf8e] text-[#071810] hover:bg-[#55d99c] disabled:opacity-60"
+                    className="h-11 gap-2 rounded-lg bg-[#3ecf8e] px-4 text-[#071810] hover:bg-[#55d99c] disabled:opacity-60"
                     aria-label="Start one-question Agora voice sample"
                   >
-                    {isLoading ? <span className="h-3 w-3 animate-pulse rounded-full bg-[#071810]" /> : <ArrowUp size={15} />}
+                    <Mic size={17} /> {isLoading ? 'Connecting...' : 'Try voice'}
                   </Button>
                   </div>
                   {error && <p className="mt-2 text-center text-xs text-red-400">{error}</p>}

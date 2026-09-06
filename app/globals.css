@@ -220,7 +220,7 @@ html {
 
 .roundtable-loading__copy { display: grid; gap: .4rem; }
 .roundtable-loading__copy strong { font-size: .95rem; font-weight: 550; letter-spacing: -.02em; }
-.roundtable-loading__copy span { color: #717171; font: .65rem var(--font-ibm-plex-mono), monospace; text-transform: uppercase; letter-spacing: .08em; }
+.roundtable-loading__copy span { color: #717171; font: .65rem var(--font-manrope), Manrope, sans-serif; text-transform: uppercase; letter-spacing: .08em; }
 .roundtable-loading__bar { width: 11rem; height: 2px; overflow: hidden; border-radius: 99px; background: #282828; }
 .roundtable-loading__bar i { display: block; width: 45%; height: 100%; background: #3ecf8e; animation: roundtable-loading-bar 1.15s ease-in-out infinite; }
 

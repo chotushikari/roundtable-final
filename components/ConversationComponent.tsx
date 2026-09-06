@@ -665,7 +665,7 @@ export default function ConversationComponent({
         <div className="mt-3 flex items-center justify-between border-t border-[#292929] pt-3">
           <span className="flex items-center gap-2 text-[11px] font-medium text-[#888]">
             <span className={`h-2 w-2 rounded-full ${isAgentConnected ? 'bg-[#3ecf8e]' : 'bg-[#555]'}`} />
-            {isAgentConnected ? 'AI listening' : 'Joining voice'}
+            {!isAgentConnected ? 'Joining voice' : agentState === 'speaking' ? 'AI speaking' : agentState === 'thinking' ? 'AI thinking' : !isEnabled ? 'Microphone muted' : 'Listening'}
           </span>
           <div className="flex items-center gap-2">
             <div className="conversation-mic-host flex items-center justify-center scale-75">
