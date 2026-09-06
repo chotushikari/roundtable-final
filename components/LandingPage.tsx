@@ -27,24 +27,59 @@ const ConversationComponent = dynamic(() => import('./ConversationComponent'), {
 // the RTC join succeeds, so this wrapper only needs to provide the RTC client.
 const AgoraProvider = dynamic(
   async () => {
-    const { AgoraRTCProvider, default: AgoraRTC } =
-      await import('agora-rtc-react');
+    type RtcClient = { mode?: string; codec?: string };
+    type RtcProviderComponent = React.ComponentType<{ client: unknown; children: React.ReactNode }>;
+    type ModuleWithClient = {
+      createClient?: (config: { mode: string; codec: string }) => RtcClient;
+      default?: { createClient?: (config: { mode: string; codec: string }) => RtcClient };
+      AgoraRTCProvider?: RtcProviderComponent;
+    };
+
+    const rtcReactMod = (await import('agora-rtc-react')) as unknown as ModuleWithClient & {
+      default?: ModuleWithClient;
+    };
+
+    const AgoraRTCProvider =
+      rtcReactMod.AgoraRTCProvider ??
+      rtcReactMod.default?.AgoraRTCProvider ??
+      (typeof rtcReactMod.default === 'function' ? (rtcReactMod.default as unknown as RtcProviderComponent) : undefined);
+
+    let AgoraRTC =
+      rtcReactMod.default?.default ??
+      rtcReactMod.default ??
+      rtcReactMod;
+
+    if (!AgoraRTC?.createClient) {
+      try {
+        const rtcSdkMod = (await import('agora-rtc-sdk-ng')) as unknown as {
+          default?: { createClient?: (config: { mode: string; codec: string }) => RtcClient };
+          createClient?: (config: { mode: string; codec: string }) => RtcClient;
+        };
+        AgoraRTC = rtcSdkMod.default ?? rtcSdkMod;
+      } catch (err) {
+        console.warn('Could not load agora-rtc-sdk-ng:', err);
+      }
+    }
+
     return {
       default: function AgoraProviders({
         children,
       }: {
         children: React.ReactNode;
       }) {
-        // useRef persists across StrictMode's simulated unmount/remount, so only
-        // one RTC client is ever created per session (useMemo creates two in StrictMode).
-        const clientRef = useRef<ReturnType<
-          typeof AgoraRTC.createClient
-        > | null>(null);
-        if (!clientRef.current) {
-          clientRef.current = AgoraRTC.createClient({
-            mode: 'rtc',
-            codec: 'vp8',
-          });
+        const clientRef = useRef<RtcClient | null>(null);
+        if (!clientRef.current && AgoraRTC?.createClient) {
+          try {
+            clientRef.current = AgoraRTC.createClient({
+              mode: 'rtc',
+              codec: 'vp8',
+            });
+          } catch (err) {
+            console.error('Failed to create Agora RTC client:', err);
+          }
+        }
+        if (!AgoraRTCProvider || !clientRef.current) {
+          return <>{children}</>;
         }
         return (
           <AgoraRTCProvider client={clientRef.current}>

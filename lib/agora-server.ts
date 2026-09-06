@@ -49,14 +49,18 @@ export function createAgoraToken(channel: string, uid: string): { token: string;
 }
 
 function baseUrl(): string {
-  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
-  const url = process.env.NODE_ENV === 'production' && vercelUrl
-    ? vercelUrl
-    : process.env.APP_BASE_URL ?? vercelUrl;
-  if (!url) {
-    if (process.env.NODE_ENV === 'production') throw new Error('APP_BASE_URL is required');
-    return 'http://localhost:3000';
-  }
+  const vercelUrl =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_URL ??
+    process.env.NEXT_PUBLIC_VERCEL_URL;
+  const envUrl = process.env.APP_BASE_URL;
+
+  // On Vercel, prioritize the automatically provided system URLs.
+  // This completely eliminates the need to manually update APP_BASE_URL after deployment.
+  const url = vercelUrl
+    ? `https://${vercelUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}`
+    : envUrl ?? (process.env.NODE_ENV === 'production' ? 'https://round-ai.vercel.app' : 'http://localhost:3000');
+
   return url.startsWith('http') ? url.replace(/\/$/, '') : `https://${url.replace(/\/$/, '')}`;
 }
 
