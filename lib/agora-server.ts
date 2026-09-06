@@ -59,6 +59,15 @@ function baseUrl(): string {
   return url.startsWith('http') ? url.replace(/\/$/, '') : `https://${url.replace(/\/$/, '')}`;
 }
 
+function resolveAgoraArea(): Area {
+  const envArea = process.env.AGORA_AREA?.toUpperCase();
+  if (envArea === 'US') return Area.US;
+  if (envArea === 'EU') return Area.EU;
+  if (envArea === 'CN') return Area.CN;
+  if (envArea === 'AP') return Area.AP;
+  return Area.US;
+}
+
 export async function startInterviewAgent({
   sessionId,
   channel,
@@ -81,7 +90,7 @@ export async function startInterviewAgent({
   demoMode?: boolean;
 }): Promise<string> {
   const client = new AgoraClient({
-    area: Area.AP,
+    area: resolveAgoraArea(),
     appId: requireAgoraEnv('NEXT_PUBLIC_AGORA_APP_ID'),
     appCertificate: requireAgoraEnv('NEXT_AGORA_APP_CERTIFICATE'),
   });
@@ -156,7 +165,7 @@ export async function startInterviewAgent({
 
 export async function stopInterviewAgent(agentId: string): Promise<void> {
   const client = new AgoraClient({
-    area: Area.AP,
+    area: resolveAgoraArea(),
     appId: requireAgoraEnv('NEXT_PUBLIC_AGORA_APP_ID'),
     appCertificate: requireAgoraEnv('NEXT_AGORA_APP_CERTIFICATE'),
   });
