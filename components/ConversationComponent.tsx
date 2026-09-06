@@ -22,7 +22,7 @@ import {
   type UserTranscription,
   type AgentTranscription,
 } from 'agora-agent-client-toolkit';
-import { AgentVisualizer } from 'agora-agent-uikit';
+import { AgentVisualizer } from './AgentVisualizer';
 import { MicButtonWithVisualizer } from 'agora-agent-uikit/rtc';
 import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import {
@@ -504,6 +504,19 @@ export default function ConversationComponent({
     setIsAgentConnected(isAgentInRemoteUsers);
   }, [remoteUsers, agentUID]);
 
+  // Ensure remote audio tracks (e.g. AI agent) are played
+  useEffect(() => {
+    remoteUsers.forEach((user) => {
+      if (user.audioTrack && !user.audioTrack.isPlaying) {
+        try {
+          void user.audioTrack.play();
+        } catch {
+          // ignore autoplay restrictions until user interacts
+        }
+      }
+    });
+  }, [remoteUsers]);
+
   useClientEvent(client, 'connection-state-change', (curState) => {
     setConnectionState(curState);
     logEvent('CONNECTION_STATE', { state: curState, timestamp: Date.now() });
@@ -637,7 +650,11 @@ export default function ConversationComponent({
           <span className={`h-2 w-2 shrink-0 rounded-full ${isAgentConnected ? 'bg-[#3ecf8e]' : 'bg-[#555]'}`} />
           <p>{latestAgentMessage ? String(latestAgentMessage.text) : currentInProgressMessage ? String(currentInProgressMessage.text) : 'Connecting the Agora companion...'}</p>
           <button type="button" onClick={handleEndConversation} className="shrink-0 rounded-md border border-[#353535] px-2 py-1 text-[10px] text-[#aaa] hover:bg-[#1d1d1d]">Stop</button>
-          {remoteUsers.map((user) => <div key={user.uid} className="hidden"><RemoteUser user={user} /></div>)}
+          {remoteUsers.map((user) => (
+            <div key={user.uid} className="hidden">
+              {typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}
+            </div>
+          ))}
         </div>
       );
     }
@@ -686,7 +703,9 @@ export default function ConversationComponent({
           </div>
         </div>
         {remoteUsers.map((user) => (
-          <div key={user.uid} className="hidden"><RemoteUser user={user} /></div>
+          <div key={user.uid} className="hidden">
+            {typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}
+          </div>
         ))}
       </div>
     );
@@ -728,7 +747,7 @@ export default function ConversationComponent({
           <AgentVisualizer state={visualizerState} size="lg" />
           {remoteUsers.map((user) => (
             <div key={user.uid} className="hidden">
-              <RemoteUser user={user} />
+              {typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}
             </div>
           ))}
         </div>

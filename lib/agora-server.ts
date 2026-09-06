@@ -2,6 +2,7 @@ import { randomInt } from 'crypto';
 import { RtcRole, RtcTokenBuilder } from 'agora-token';
 import {
   AgoraClient,
+  type AgoraArea,
   Agent,
   Area,
   CustomLLM,
@@ -59,7 +60,7 @@ function baseUrl(): string {
   return url.startsWith('http') ? url.replace(/\/$/, '') : `https://${url.replace(/\/$/, '')}`;
 }
 
-function resolveAgoraArea(): Area {
+function resolveAgoraArea(): AgoraArea {
   const envArea = process.env.AGORA_AREA?.toUpperCase();
   if (envArea === 'US') return Area.US;
   if (envArea === 'EU') return Area.EU;
