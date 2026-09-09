@@ -2,22 +2,39 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient, type Session } from '@supabase/supabase-js';
 import {
-  Activity, ArrowLeft, ArrowRight, BriefcaseBusiness, Check, CheckCircle2,
-  Clipboard, Clock3, FileCheck2, FileText, Link2, LoaderCircle, LogOut, Plus,
-  Radio, RefreshCw, ShieldCheck, Sparkles, Upload, Users,
+  Activity, ArrowLeft, ArrowRight, Briefcase, BriefcaseBusiness, Check,
+  CheckCircle2, ChevronRight, Clipboard, Clock3, FileCheck2, FileText,
+  Link2, LoaderCircle, LogOut, MapPin, Plus, Radio, RefreshCw, ShieldCheck,
+  Sparkles, Tag, Upload, Users, X,
 } from 'lucide-react';
 import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import styles from './CompanyDashboard.module.css';
 
-type Interview = { id: string; title: string; roleTitle: string; status: string; createdAt: string };
-type SessionSummary = { id: string; status: string; health: string; startedAt: string; completedAt: string | null; interviewId: string };
-type CandidateDetails = { name: string; email: string };
+// ─── Types ────────────────────────────────────────────────────────────────────
 
+type Job = {
+  id: string; title: string; employmentType: string; locationLabel: string | null;
+  status: string; createdAt: string; jdText: string; hiringBar: Record<string, unknown>;
+};
+type Competency = { id: string; competencyKey: string; name: string; description: string; weight: number; required: boolean };
+type Interview = { id: string; title: string; roleTitle: string; status: string; createdAt: string; jobId?: string | null };
+type SessionSummary = { id: string; status: string; health: string; startedAt: string; completedAt: string | null; interviewId: string };
+type Candidate = { id: string; fullName: string | null; email: string | null };
+type JobCandidate = { id: string; candidateId: string; stage: string; createdAt: string; candidate: Candidate };
+
+const employmentLabels: Record<string, string> = {
+  full_time: 'Full-time', part_time: 'Part-time', internship: 'Internship',
+  contract: 'Contract', temporary: 'Temporary',
+};
+const stageColors: Record<string, string> = {
+  draft: 'stage_draft', invited: 'stage_invited', in_progress: 'stage_active',
+  completed: 'stage_done', review: 'stage_review', withdrawn: 'stage_grey', archived: 'stage_grey',
+};
 const roleNames: Record<string, string> = {
   hiring_manager: 'Hiring Manager', technical: 'Technical', product: 'Product Manager',
   customer: 'Customer', behavioral: 'Behavioural',
@@ -26,6 +43,8 @@ const roleNames: Record<string, string> = {
 function GoogleMark() {
   return <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.googleMark}><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.42l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.6 0-4.81-1.76-5.6-4.13H3.06v2.62A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.87A6 6 0 0 1 6.1 12c0-.65.11-1.28.3-1.87V7.51H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.49l3.34-2.62Z"/><path fill="#EA4335" d="M12 6c1.47 0 2.78.5 3.82 1.49l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.94 5.51l3.34 2.62C7.19 7.76 9.4 6 12 6Z"/></svg>;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function CompanyDashboard() {
   const router = useRouter();
@@ -36,76 +55,139 @@ export function CompanyDashboard() {
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     return url && key ? createClient(url, key) : null;
   }, [companyAuthDisabled]);
+
   const [authReady, setAuthReady] = useState(!supabase);
   const [session, setSession] = useState<Session | null>(null);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+
+  // ── Jobs state ──────────────────────────────────────────────────────────────
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null;
+
+  // ── Per-job data ─────────────────────────────────────────────────────────────
+  const [competencies, setCompetencies] = useState<Competency[]>([]);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [jobCandidates, setJobCandidates] = useState<JobCandidate[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+
+  // ── Active tab inside job detail ─────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'competencies' | 'blueprint' | 'candidates' | 'pipeline'>('candidates');
+
+  // ── Create job form ──────────────────────────────────────────────────────────
+  const [showCreateJob, setShowCreateJob] = useState(false);
+  const [jobTitle, setJobTitle] = useState('');
+  const [jobEmploymentType, setJobEmploymentType] = useState('full_time');
+  const [jobLocation, setJobLocation] = useState('');
+  const [jobJd, setJobJd] = useState('');
+
+  // ── Add competency form ──────────────────────────────────────────────────────
+  const [compName, setCompName] = useState('');
+  const [compKey, setCompKey] = useState('');
+  const [compWeight, setCompWeight] = useState('10');
+  const [compDesc, setCompDesc] = useState('');
+
+  // ── Blueprint (interview) form ───────────────────────────────────────────────
   const [roleTitle, setRoleTitle] = useState('Software Engineer Intern (0 years experience)');
   const [jdText, setJdText] = useState('Entry-level internship with no professional experience required. Use Python, JavaScript, or TypeScript. Assess basic problem solving, simple functions, a small to-do app design, communication, and willingness to learn. Accept class assignments and personal projects. Keep questions beginner-friendly; do not require distributed systems or production experience.');
   const [outcomes, setOutcomes] = useState('Write a simple function and explain an edge case\nDraw a simple app with a client, server, and database\nExplain how the app helps a user\nCommunicate clearly and learn from feedback');
   const [mustAsk, setMustAsk] = useState('');
-  const [message, setMessage] = useState('');
-  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
+  // ── Add candidate form ───────────────────────────────────────────────────────
+  const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
+
+  // ── Invitation / resume per-candidate ───────────────────────────────────────
+  const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({});
   const [resumeTexts, setResumeTexts] = useState<Record<string, string>>({});
   const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
-  const [candidateDetails, setCandidateDetails] = useState<Record<string, CandidateDetails>>({});
-  const [invitationLinks, setInvitationLinks] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // ── UI feedback ──────────────────────────────────────────────────────────────
+  const [message, setMessage] = useState('');
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
   const accessToken = session?.access_token;
   const authHeaders: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 
-  const load = useCallback(async (quiet = false) => {
-    if (!quiet) setPendingAction('load');
-    try {
-      const headers: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-      const response = await fetch('/api/interviews', { headers });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not load interviews');
-      const nextInterviews = data.interviews as Interview[];
-      setInterviews(nextInterviews);
-      setOrganizationId(data.organizationId);
-      const lists = await Promise.all(nextInterviews.map(async (item) => {
-        const result = await fetch(`/api/interviews/${item.id}/sessions`, { headers });
-        const body = await result.json();
-        return result.ok ? (body.sessions as Omit<SessionSummary, 'interviewId'>[]).map((entry) => ({ ...entry, interviewId: item.id })) : [];
-      }));
-      setSessions(lists.flat());
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not load interviews');
-    } finally {
-      if (!quiet) setPendingAction(null);
-    }
-  }, [accessToken]);
-
+  // ─── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!supabase) return;
     void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true); });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => { setSession(next); setAuthReady(true); });
+    const { data } = supabase.auth.onAuthStateChange((_e, next) => { setSession(next); setAuthReady(true); });
     return () => data.subscription.unsubscribe();
   }, [supabase]);
-  useEffect(() => { if (authReady && (session || !supabase)) void load(); }, [authReady, load, session, supabase]);
+
+  // --- Load jobs
+  const loadJobs = async () => {
+    try {
+      const headers: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+      const res = await fetch('/api/jobs', { headers });
+      const data = await res.json() as { jobs: Job[]; organizationId: string };
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Could not load jobs');
+      setJobs(data.jobs ?? []);
+      setOrganizationId(data.organizationId);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load jobs'); }
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (authReady && (session || !supabase)) void loadJobs(); }, [authReady, !!session, !!supabase, accessToken]);
+
+
+  // ─── Load job detail ────────────────────────────────────────────────────────
+  const loadJobDetail = async (jobId: string | null) => {
+    if (!jobId) return;
+    const headers: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+    try {
+      const [compRes, candRes, intRes] = await Promise.all([
+        fetch(`/api/jobs/${jobId}/competencies`, { headers }),
+        fetch(`/api/jobs/${jobId}/candidates`, { headers }),
+        fetch('/api/interviews', { headers }),
+      ]);
+      const [compData, candData, intData] = await Promise.all([compRes.json(), candRes.json(), intRes.json()]);
+      if (compRes.ok) setCompetencies((compData as { competencies: Competency[] }).competencies ?? []);
+      if (candRes.ok) setJobCandidates((candData as { candidates: JobCandidate[] }).candidates ?? []);
+      if (intRes.ok) {
+        const allInterviews = (intData as { interviews: Interview[] }).interviews ?? [];
+        setInterviews(allInterviews.filter((i) => i.jobId === jobId));
+        // Load sessions for each scoped interview
+        const lists = await Promise.all(
+          allInterviews.filter((i) => i.jobId === jobId).map(async (item) => {
+            const r = await fetch(`/api/interviews/${item.id}/sessions`, { headers });
+            const b = await r.json() as { sessions?: Omit<SessionSummary, 'interviewId'>[] };
+            return r.ok ? (b.sessions ?? []).map((e) => ({ ...e, interviewId: item.id })) : [];
+          }),
+        );
+        setSessions(lists.flat());
+      }
+    } catch { /* non-fatal */ }
+  };
+
+  // ─── Realtime for org channel ───────────────────────────────────────────────
   useEffect(() => {
     if (!supabase || !session || !organizationId) return;
-    const channel = supabase.channel(`organization:${organizationId}:status`, { config: { private: true } }).on('broadcast', { event: '*' }, () => void load(true)).subscribe();
+    const channel = supabase.channel(`organization:${organizationId}:status`, { config: { private: true } })
+      .on('broadcast', { event: '*' }, () => void loadJobDetail(selectedJobId))
+      .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [load, organizationId, session, supabase]);
-  useEffect(() => {
-    const hasLiveSession = sessions.some((item) => ['ready', 'starting', 'active', 'in_progress', 'assessing'].includes(item.status));
-    if (!hasLiveSession) return;
-    const pollId = window.setInterval(() => void load(true), 10_000);
-    return () => window.clearInterval(pollId);
-  }, [load, sessions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, session, organizationId, selectedJobId]);
 
-  const stats = useMemo(() => ({
-    active: sessions.filter((item) => ['starting', 'active', 'in_progress'].includes(item.status)).length,
-    completed: sessions.filter((item) => item.status === 'completed').length,
-  }), [sessions]);
+  useEffect(() => { void loadJobDetail(selectedJobId); }, [selectedJobId, accessToken]);
+
+  // ─── Live session polling ───────────────────────────────────────────────────
+  useEffect(() => {
+    const hasLive = sessions.some((s) => ['ready', 'starting', 'active', 'in_progress', 'assessing'].includes(s.status));
+    if (!hasLive) return;
+    const id = window.setInterval(() => void loadJobDetail(selectedJobId), 10_000);
+    return () => window.clearInterval(id);
+  }, [sessions, selectedJobId, loadJobDetail]);
+
+  // ─── Actions ────────────────────────────────────────────────────────────────
 
   async function googleSignIn() {
     if (!supabase) return;
-    setPendingAction('google');
-    setMessage('Opening Google sign in…');
+    setPendingAction('google'); setMessage('Opening Google sign in…');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google', options: { redirectTo: `${window.location.origin}/company` },
     });
@@ -120,133 +202,578 @@ export function CompanyDashboard() {
     setPendingAction(null);
   }
 
-  async function createInterview() {
-    setPendingAction('create');
-    setMessage('Generating the five-perspective interview plan…');
+  async function createJob() {
+    if (!jobTitle.trim()) return;
+    setPendingAction('createJob');
     try {
-      const response = await fetch('/api/interviews', {
+      const res = await fetch('/api/jobs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ title: jobTitle.trim(), employmentType: jobEmploymentType, locationLabel: jobLocation.trim() || undefined, jdText: jobJd.trim() }),
+      });
+      const data = await res.json() as { job: Job; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not create job');
+      setJobs((prev) => [data.job, ...prev]);
+      setSelectedJobId(data.job.id);
+      setShowCreateJob(false);
+      setJobTitle(''); setJobJd(''); setJobLocation('');
+      setActiveTab('blueprint');
+      setMessage(`"${data.job.title}" created. Now set up your interview blueprint.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not create job'); }
+    finally { setPendingAction(null); }
+  }
+
+  async function addCompetency() {
+    if (!selectedJobId || !compName.trim()) return;
+    const key = compKey.trim() || compName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^([^a-z])/, 'c$1').slice(0, 64);
+    setPendingAction('addComp');
+    try {
+      const res = await fetch(`/api/jobs/${selectedJobId}/competencies`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ competencyKey: key, name: compName.trim(), description: compDesc.trim(), weight: Number(compWeight) || 10 }),
+      });
+      const data = await res.json() as { competency: Competency; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not save competency');
+      setCompetencies((prev) => {
+        const next = prev.filter((c) => c.id !== data.competency.id);
+        return [data.competency, ...next].sort((a, b) => b.weight - a.weight);
+      });
+      setCompName(''); setCompKey(''); setCompWeight('10'); setCompDesc('');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save competency'); }
+    finally { setPendingAction(null); }
+  }
+
+  async function deleteCompetency(id: string) {
+    if (!selectedJobId) return;
+    setPendingAction(`delComp:${id}`);
+    try {
+      const res = await fetch(`/api/jobs/${selectedJobId}/competencies`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error('Could not delete competency');
+      setCompetencies((prev) => prev.filter((c) => c.id !== id));
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not delete competency'); }
+    finally { setPendingAction(null); }
+  }
+
+  async function createBlueprint() {
+    if (!selectedJobId) return;
+    setPendingAction('createBp'); setMessage('Generating five-perspective interview plan…');
+    try {
+      const res = await fetch('/api/interviews', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           title: `${roleTitle.trim()} Interview`.slice(0, 120), roleTitle, jdText,
-          desiredOutcomes: outcomes.split('\n').map((item) => item.trim()).filter(Boolean),
-          mustAskQuestions: mustAsk.split('\n').map((item) => item.trim()).filter(Boolean),
+          desiredOutcomes: outcomes.split('\n').map((s) => s.trim()).filter(Boolean),
+          mustAskQuestions: mustAsk.split('\n').map((s) => s.trim()).filter(Boolean),
           panelRoles: DEMO_ROLES, durationMinutes: DEMO_DURATION_MINUTES, demoMode: true,
+          jobId: selectedJobId,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not create interview');
-      const plan = await fetch(`/api/interviews/${data.interview.id}/plan`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders }, body: '{}' });
-      const planData = await plan.json();
-      if (!plan.ok) throw new Error(planData.error ?? 'Could not generate interview plan');
-      setMessage('Interview plan ready. Add candidate details or a resume, then generate a private link.');
-      await load(true);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not create interview');
-    } finally { setPendingAction(null); }
+      const data = await res.json() as { interview: Interview; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not create blueprint');
+      const plan = await fetch(`/api/interviews/${data.interview.id}/plan`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders }, body: '{}',
+      });
+      const planData = await plan.json() as { error?: string };
+      if (!plan.ok) throw new Error(planData.error ?? 'Could not generate plan');
+      setMessage('Blueprint ready. Add candidates, then generate invite links.');
+      setInterviews((prev) => [data.interview, ...prev]);
+      setActiveTab('candidates');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not create blueprint'); }
+    finally { setPendingAction(null); }
   }
 
-  async function readResume(id: string, file?: File) {
+  async function addCandidate() {
+    if (!selectedJobId || (!candidateName.trim() && !candidateEmail.trim())) return;
+    setPendingAction('addCand');
+    try {
+      const res = await fetch(`/api/jobs/${selectedJobId}/candidates`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ fullName: candidateName.trim() || undefined, email: candidateEmail.trim() || undefined }),
+      });
+      const data = await res.json() as { candidate: Candidate; jobCandidate: JobCandidate; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not add candidate');
+      setJobCandidates((prev) => {
+        const next = prev.filter((jc) => jc.id !== data.jobCandidate.id);
+        return [{ ...data.jobCandidate, candidate: data.candidate }, ...next];
+      });
+      setCandidateName(''); setCandidateEmail('');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not add candidate'); }
+    finally { setPendingAction(null); }
+  }
+
+  async function readResume(jcId: string, file?: File) {
     if (!file) return;
     if (file.size > 120_000) { setMessage('Resume is too large. Use a TXT or Markdown file under 120 KB.'); return; }
-    setPendingAction(`resume:${id}`);
-    try {
-      const text = await file.text();
-      setResumeTexts((current) => ({ ...current, [id]: text.slice(0, 30_000) }));
-      setResumeNames((current) => ({ ...current, [id]: file.name }));
-      setMessage(`${file.name} is attached and will be stored privately when you generate the link.`);
-    } finally { setPendingAction(null); }
+    setPendingAction(`resume:${jcId}`);
+    const text = await file.text();
+    setResumeTexts((prev) => ({ ...prev, [jcId]: text.slice(0, 30_000) }));
+    setResumeNames((prev) => ({ ...prev, [jcId]: file.name }));
+    setPendingAction(null);
   }
 
-  async function publish(id: string) {
-    setPendingAction(`publish:${id}`);
+  async function generateInvite(jcId: string, candidateData: Candidate) {
+    if (!selectedJobId || interviews.length === 0) {
+      setMessage('Create a blueprint first before generating an invitation link.');
+      setActiveTab('blueprint');
+      return;
+    }
+    const blueprint = interviews[0]; // use latest blueprint for this job
+    setPendingAction(`invite:${jcId}`);
     try {
-      const details = candidateDetails[id] ?? { name: '', email: '' };
-      const response = await fetch(`/api/interviews/${id}/publish`, {
+      const res = await fetch(`/api/interviews/${blueprint.id}/publish`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ candidateName: details.name.trim() || undefined, candidateEmail: details.email.trim() || undefined, resumeText: resumeTexts[id] || undefined }),
+        body: JSON.stringify({
+          candidateName: candidateData.fullName ?? undefined,
+          candidateEmail: candidateData.email ?? undefined,
+          resumeText: resumeTexts[jcId] ?? undefined,
+          jobCandidateId: jcId,
+        }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Could not generate invitation');
-      setInvitationLinks((current) => ({ ...current, [id]: data.invitationUrl }));
-      setMessage('Private interview link created. Use Copy link when you are ready to share it.');
-      await load(true);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not generate invitation');
-    } finally { setPendingAction(null); }
+      const data = await res.json() as { invitationUrl?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not generate invitation');
+      setInviteLinks((prev) => ({ ...prev, [jcId]: data.invitationUrl! }));
+      // advance stage to 'invited'
+      await fetch(`/api/jobs/${selectedJobId}/candidates/${jcId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ stage: 'invited' }),
+      });
+      setJobCandidates((prev) => prev.map((jc) => jc.id === jcId ? { ...jc, stage: 'invited' } : jc));
+      setMessage('Invitation ready. Use Copy link to share it.');
+      setActiveTab('pipeline');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not generate invitation'); }
+    finally { setPendingAction(null); }
   }
 
-  async function copyInvitation(id: string) {
-    const url = invitationLinks[id];
+  async function copyLink(id: string) {
+    const url = inviteLinks[id];
     if (!url) return;
     setPendingAction(`copy:${id}`);
     try {
       await navigator.clipboard.writeText(url);
       setCopiedId(id);
-      setMessage('Invitation link copied to clipboard.');
+      setMessage('Link copied to clipboard.');
       window.setTimeout(() => setCopiedId(null), 2200);
-    } catch { setMessage('Clipboard access was blocked. Select the link and copy it manually.'); }
+    } catch { setMessage('Clipboard blocked. Select and copy manually.'); }
     finally { setPendingAction(null); }
   }
 
-  function openAnalysis(id: string) {
-    setPendingAction(`analysis:${id}`);
-    router.push(`/company/analysis/${id}`);
-  }
+  // ─── Auth screens ────────────────────────────────────────────────────────────
 
-  if (!authReady) return <main className={styles.authPage}><div className={styles.authLoader}><LoaderCircle className={styles.spin}/><span>Checking your workspace</span></div></main>;
-
-  if (supabase && !session) return <main className={styles.authPage}>
-    <Link href="/" className={styles.backLink}><ArrowLeft size={15}/> Back to RoundTable</Link>
-    <Card className={styles.authCard}>
-      <CardHeader><span className={styles.brand}><i/> RoundTable AI</span><span className={styles.authEyebrow}>INTERVIEWER PORTAL</span><CardTitle className={styles.authTitle}>Your private hiring workspace</CardTitle><p className={styles.muted}>Sign in with Google to create interviews, manage candidate links, and review evidence-backed reports.</p></CardHeader>
-      <CardContent><Button onClick={googleSignIn} disabled={pendingAction === 'google'} className={styles.googleButton}>{pendingAction === 'google' ? <LoaderCircle className={styles.spin} size={18}/> : <GoogleMark/>}{pendingAction === 'google' ? 'Connecting…' : 'Continue with Google'}</Button><p className={styles.authFoot}><ShieldCheck size={13}/> Candidate accounts are never required.</p>{message && <p className={styles.authMessage}>{message}</p>}</CardContent>
-    </Card>
-  </main>;
-
-  const profileName = session?.user.user_metadata?.full_name ?? session?.user.user_metadata?.name ?? session?.user.email ?? 'Demo interviewer';
-  return <div className={styles.page}>
-    <header className={styles.topbar}><Link href="/" className={styles.brand}><i/> RoundTable AI</Link><div className={styles.topActions}><span className={styles.userChip}><span><b>{profileName}</b><small>Interviewer</small></span></span>{supabase && <Button variant="outline" size="sm" disabled={pendingAction === 'signout'} onClick={signOut}>{pendingAction === 'signout' ? <LoaderCircle className={styles.spin} size={14}/> : <LogOut size={14}/>} Sign out</Button>}</div></header>
-    <main className={styles.shell}>
-      <section className={styles.hero}><div><span className={styles.eyebrow}>PRIVATE COMPANY WORKSPACE</span><h1>Interview command center</h1><p>Build one structured panel, share one secure candidate link, then review transcript and workspace evidence on a dedicated analysis page.</p></div><Button variant="outline" onClick={() => void load()} disabled={pendingAction === 'load'}>{pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh</Button></section>
-      <section className={styles.metrics} aria-label="Interview statistics">
-        <Card className={styles.metricCard}><BriefcaseBusiness/><div><strong>{interviews.length}</strong><span>Interview plans</span></div></Card>
-        <Card className={styles.metricCard}><Radio/><div><strong>{stats.active}</strong><span>Live now</span></div></Card>
-        <Card className={styles.metricCard}><FileCheck2/><div><strong>{stats.completed}</strong><span>Ready to review</span></div></Card>
-        <Card className={styles.metricCard}><Users/><div><strong>5</strong><span>Panel perspectives</span></div></Card>
-      </section>
-      {message && <div className={styles.notice} role="status"><Sparkles size={16}/><span>{message}</span></div>}
-      <section className={styles.dashboardGrid}>
-        <Card className={styles.panel}><CardHeader className={styles.cardHeading}><div><span className={styles.sectionLabel}>01 · CREATE</span><CardTitle>Design an interview</CardTitle><p>RoundTable generates a fixed five-role, ten-minute showcase plan.</p></div><span className={styles.duration}><Clock3 size={11}/> {DEMO_DURATION_MINUTES} min</span></CardHeader><CardContent className={styles.form}>
-          <label className={styles.field}><span>Role title</span><input value={roleTitle} onChange={(event) => setRoleTitle(event.target.value)} placeholder="e.g. Frontend Engineer"/></label>
-          <label className={styles.field}><span>Role context and requirements</span><textarea value={jdText} onChange={(event) => setJdText(event.target.value)} rows={6}/></label>
-          <label className={styles.field}><span>Desired outcomes <small>one per line</small></span><textarea value={outcomes} onChange={(event) => setOutcomes(event.target.value)} rows={4}/></label>
-          <label className={styles.field}><span>Must-ask questions <small>optional, one per line</small></span><textarea value={mustAsk} onChange={(event) => setMustAsk(event.target.value)} rows={3} placeholder="Add questions the panel must cover"/></label>
-          <div className={styles.panelBlock}><span>Server-controlled panel sequence</span><div className={styles.roleChips}>{DEMO_ROLES.map((role, index) => <span key={role}><b>{index + 1}</b>{roleNames[role] ?? role}</span>)}</div></div>
-          <Button onClick={createInterview} disabled={pendingAction === 'create' || !roleTitle.trim() || !jdText.trim()} className={styles.createButton}>{pendingAction === 'create' ? <><Activity className={styles.spin} size={17}/> Generating plan…</> : <><Plus size={17}/> Create interview plan</>}</Button>
-        </CardContent></Card>
-
-        <Card className={styles.panel}><CardHeader className={styles.cardHeading}><div><span className={styles.sectionLabel}>02 · INVITE & TRACK</span><CardTitle>Candidate pipeline</CardTitle><p>Attach candidate context, create a link, and follow live status.</p></div><span className={styles.duration}>{interviews.length} total</span></CardHeader><CardContent className={styles.interviewList}>
-          {pendingAction === 'load' && interviews.length === 0 && <div className={styles.emptyState}><LoaderCircle className={styles.spin}/><strong>Loading workspace</strong><span>Fetching your private interviews.</span></div>}
-          {pendingAction !== 'load' && interviews.length === 0 && <div className={styles.emptyState}><BriefcaseBusiness/><strong>No interviews yet</strong><span>Create a plan to start your candidate pipeline.</span></div>}
-          {interviews.map((item) => {
-            const itemSessions = sessions.filter((entry) => entry.interviewId === item.id);
-            const details = candidateDetails[item.id] ?? { name: '', email: '' };
-            const invitationUrl = invitationLinks[item.id];
-            return <article key={item.id} className={styles.interviewItem}>
-              <div className={styles.interviewTitleRow}><div><strong>{item.title}</strong><span>{new Date(item.createdAt).toLocaleDateString()}</span></div><span className={`${styles.status} ${styles[`status_${item.status}`] ?? ''}`}>{item.status}</span></div>
-              <p>{item.roleTitle}</p>
-              {item.status === 'ready' && <div className={styles.inviteSetup}>
-                <div className={styles.candidateFields}><input value={details.name} onChange={(event) => setCandidateDetails((current) => ({ ...current, [item.id]: { ...details, name: event.target.value } }))} placeholder="Candidate name (optional)"/><input type="email" value={details.email} onChange={(event) => setCandidateDetails((current) => ({ ...current, [item.id]: { ...details, email: event.target.value } }))} placeholder="Candidate email (optional)"/></div>
-                <label className={styles.resumeUpload}><span className={styles.resumeIcon}>{pendingAction === `resume:${item.id}` ? <LoaderCircle className={styles.spin} size={16}/> : <Upload size={16}/>}</span><span><strong>{resumeNames[item.id] || 'Attach candidate resume'}</strong><small>Optional TXT or Markdown · private · max 120 KB</small></span><input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void readResume(item.id, event.target.files?.[0])}/></label>
-                <Button variant="outline" size="sm" disabled={pendingAction === `publish:${item.id}`} onClick={() => void publish(item.id)}>{pendingAction === `publish:${item.id}` ? <><LoaderCircle className={styles.spin} size={14}/> Creating secure link…</> : <><Link2 size={14}/> Generate candidate link</>}</Button>
-              </div>}
-              {invitationUrl && <div className={styles.invitationBox}><div><CheckCircle2 size={15}/><span><strong>Invitation ready</strong><small>Single-use · expires in 7 days</small></span></div><div className={styles.linkRow}><input readOnly value={invitationUrl} onFocus={(event) => event.currentTarget.select()}/><Button size="sm" onClick={() => void copyInvitation(item.id)} disabled={pendingAction === `copy:${item.id}`}>{pendingAction === `copy:${item.id}` ? <LoaderCircle className={styles.spin} size={14}/> : copiedId === item.id ? <Check size={14}/> : <Clipboard size={14}/>} {copiedId === item.id ? 'Copied' : 'Copy link'}</Button></div></div>}
-              {itemSessions.length > 0 && <div className={styles.sessionList}>{itemSessions.map((entry) => <div key={entry.id} className={styles.sessionRow}><span><i className={entry.status === 'completed' || entry.health === 'connected' || entry.health === 'healthy' ? styles.healthy : styles.warning}/><span><b>{entry.status === 'completed' ? 'Completed · analysis ready' : entry.status.replace('_', ' ')}</b><small>{new Date(entry.startedAt).toLocaleString()}</small></span></span>{entry.status === 'completed' && <button className={styles.analysisButton} disabled={pendingAction === `analysis:${entry.id}`} onClick={() => openAnalysis(entry.id)}>{pendingAction === `analysis:${entry.id}` ? <LoaderCircle className={styles.spin} size={15}/> : <FileText size={15}/>} Open full analysis <ArrowRight size={15}/></button>}</div>)}</div>}
-            </article>;
-          })}
-        </CardContent></Card>
-      </section>
-      <footer className={styles.dashboardFoot}><ShieldCheck size={14}/> Every interview, invitation, session, resume, transcript, and artifact is scoped to this Google interviewer workspace.</footer>
+  if (!authReady) return (
+    <main className={styles.authPage}>
+      <div className={styles.authLoader}><LoaderCircle className={styles.spin}/><span>Checking your workspace</span></div>
     </main>
-  </div>;
+  );
+
+  if (supabase && !session) return (
+    <main className={styles.authPage}>
+      <Link href="/" className={styles.backLink}><ArrowLeft size={15}/> Back to RoundTable</Link>
+      <Card className={styles.authCard}>
+        <CardHeader>
+          <span className={styles.brand}><i/> RoundTable AI</span>
+          <span className={styles.authEyebrow}>RECRUITER PORTAL</span>
+          <CardTitle className={styles.authTitle}>Your hiring workspace</CardTitle>
+          <p className={styles.muted}>Sign in with Google to manage jobs, candidates, and evidence-backed interviews.</p>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={googleSignIn} disabled={pendingAction === 'google'} className={styles.googleButton}>
+            {pendingAction === 'google' ? <LoaderCircle className={styles.spin} size={18}/> : <GoogleMark/>}
+            {pendingAction === 'google' ? 'Connecting…' : 'Continue with Google'}
+          </Button>
+          <p className={styles.authFoot}><ShieldCheck size={13}/> Candidate accounts are never required.</p>
+          {message && <p className={styles.authMessage}>{message}</p>}
+        </CardContent>
+      </Card>
+    </main>
+  );
+
+  const profileName = session?.user.user_metadata?.full_name ?? session?.user.user_metadata?.name ?? session?.user.email ?? 'Demo recruiter';
+  const stats = {
+    jobs: jobs.length,
+    active: sessions.filter((s) => ['starting', 'active', 'in_progress'].includes(s.status)).length,
+    completed: sessions.filter((s) => s.status === 'completed').length,
+    candidates: jobCandidates.length,
+  };
+
+  // ─── Main dashboard ──────────────────────────────────────────────────────────
+  return (
+    <div className={styles.page}>
+      <header className={styles.topbar}>
+        <Link href="/" className={styles.brand}><i/> RoundTable AI</Link>
+        <div className={styles.topActions}>
+          <span className={styles.userChip}>
+            <span><b>{profileName}</b><small>Recruiter</small></span>
+          </span>
+          {supabase && (
+            <Button variant="outline" size="sm" disabled={pendingAction === 'signout'} onClick={signOut}>
+              {pendingAction === 'signout' ? <LoaderCircle className={styles.spin} size={14}/> : <LogOut size={14}/>} Sign out
+            </Button>
+          )}
+        </div>
+      </header>
+
+      <main className={styles.shell}>
+        {/* Hero */}
+        <section className={styles.hero}>
+          <div>
+            <span className={styles.eyebrow}>RECRUITER COMMAND CENTER</span>
+            <h1>Hiring pipeline</h1>
+            <p>Create a job, define competencies, configure a blueprint, add candidates, and generate private interview links — all in one place.</p>
+          </div>
+          <Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>
+            {pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh
+          </Button>
+        </section>
+
+        {/* Metric bar */}
+        <section className={styles.metrics} aria-label="Pipeline statistics">
+          <Card className={styles.metricCard}><BriefcaseBusiness/><div><strong>{stats.jobs}</strong><span>Jobs</span></div></Card>
+          <Card className={styles.metricCard}><Users/><div><strong>{stats.candidates}</strong><span>Candidates</span></div></Card>
+          <Card className={styles.metricCard}><Radio/><div><strong>{stats.active}</strong><span>Live now</span></div></Card>
+          <Card className={styles.metricCard}><FileCheck2/><div><strong>{stats.completed}</strong><span>Ready to review</span></div></Card>
+        </section>
+
+        {message && <div className={styles.notice} role="status"><Sparkles size={16}/><span>{message}</span></div>}
+
+        {/* Two-panel layout */}
+        <section className={styles.workbench}>
+          {/* Left — Job list */}
+          <aside className={styles.sidebar}>
+            <div className={styles.sidebarHead}>
+              <span className={styles.sectionLabel}>JOBS</span>
+              <Button size="sm" variant="outline" className={styles.newJobBtn} onClick={() => setShowCreateJob(true)}>
+                <Plus size={13}/> New job
+              </Button>
+            </div>
+
+            {/* Create job inline form */}
+            {showCreateJob && (
+              <div className={styles.createJobForm}>
+                <div className={styles.createJobFormHead}>
+                  <span>New job posting</span>
+                  <button className={styles.closeBtn} onClick={() => setShowCreateJob(false)} aria-label="Close"><X size={14}/></button>
+                </div>
+                <label className={styles.field}>
+                  <span>Job title *</span>
+                  <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="e.g. Frontend Engineer"/>
+                </label>
+                <label className={styles.field}>
+                  <span>Type</span>
+                  <select value={jobEmploymentType} onChange={(e) => setJobEmploymentType(e.target.value)} className={styles.select}>
+                    {Object.entries(employmentLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>Location <small>optional</small></span>
+                  <input value={jobLocation} onChange={(e) => setJobLocation(e.target.value)} placeholder="e.g. Remote / London"/>
+                </label>
+                <label className={styles.field}>
+                  <span>Job description <small>optional</small></span>
+                  <textarea value={jobJd} onChange={(e) => setJobJd(e.target.value)} rows={4} placeholder="Paste or type role context…"/>
+                </label>
+                <Button className={styles.createButton} onClick={createJob} disabled={!jobTitle.trim() || pendingAction === 'createJob'}>
+                  {pendingAction === 'createJob' ? <><Activity className={styles.spin} size={15}/> Creating…</> : <><Plus size={15}/> Create job</>}
+                </Button>
+              </div>
+            )}
+
+            {/* Job list */}
+            {jobs.length === 0 && !showCreateJob && (
+              <div className={styles.sidebarEmpty}>
+                <Briefcase size={22}/>
+                <strong>No jobs yet</strong>
+                <span>Create your first job posting to start the hiring pipeline.</span>
+              </div>
+            )}
+            {jobs.map((job) => (
+              <button
+                key={job.id}
+                className={`${styles.jobRow} ${selectedJobId === job.id ? styles.jobRowActive : ''}`}
+                onClick={() => { setSelectedJobId(job.id); setActiveTab('candidates'); }}
+              >
+                <div className={styles.jobRowInner}>
+                  <strong>{job.title}</strong>
+                  <div className={styles.jobMeta}>
+                    <span><Tag size={10}/> {employmentLabels[job.employmentType] ?? job.employmentType}</span>
+                    {job.locationLabel && <span><MapPin size={10}/> {job.locationLabel}</span>}
+                  </div>
+                </div>
+                <span className={`${styles.jobStatus} ${styles[`jobStatus_${job.status}`] ?? ''}`}>{job.status}</span>
+                <ChevronRight size={13} className={styles.jobChevron}/>
+              </button>
+            ))}
+          </aside>
+
+          {/* Right — Job detail */}
+          <div className={styles.jobDetail}>
+            {!selectedJob ? (
+              <div className={styles.detailEmpty}>
+                <BriefcaseBusiness size={32}/>
+                <strong>Select a job</strong>
+                <span>Choose a job from the left panel to manage its competencies, blueprint, and candidate pipeline.</span>
+                {jobs.length === 0 && (
+                  <Button className={styles.createButton} style={{ marginTop: 12 }} onClick={() => setShowCreateJob(true)}>
+                    <Plus size={15}/> Create your first job
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Job header */}
+                <div className={styles.jobHeader}>
+                  <div>
+                    <h2>{selectedJob.title}</h2>
+                    <div className={styles.jobMeta}>
+                      <span><Tag size={11}/> {employmentLabels[selectedJob.employmentType] ?? selectedJob.employmentType}</span>
+                      {selectedJob.locationLabel && <span><MapPin size={11}/> {selectedJob.locationLabel}</span>}
+                      <span><Clock3 size={11}/> Created {new Date(selectedJob.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <span className={`${styles.jobStatus} ${styles[`jobStatus_${selectedJob.status}`] ?? ''}`}>{selectedJob.status}</span>
+                </div>
+
+                {/* Tabs */}
+                <nav className={styles.tabs}>
+                  {(['competencies', 'blueprint', 'candidates', 'pipeline'] as const).map((tab, i) => (
+                    <button
+                      key={tab}
+                      className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      <span className={styles.tabNum}>0{i + 1}</span>
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {tab === 'candidates' && jobCandidates.length > 0 && (
+                        <span className={styles.tabBadge}>{jobCandidates.length}</span>
+                      )}
+                      {tab === 'pipeline' && sessions.length > 0 && (
+                        <span className={styles.tabBadge}>{sessions.length}</span>
+                      )}
+                    </button>
+                  ))}
+                </nav>
+
+                {/* ── Tab: Competencies ─────────────────────────────── */}
+                {activeTab === 'competencies' && (
+                  <div className={styles.tabPanel}>
+                    <div className={styles.tabIntro}>
+                      <strong>Hiring bar</strong>
+                      <span>Define weighted competencies. The interview controller targets gaps against this bar.</span>
+                    </div>
+                    {/* Add form */}
+                    <Card className={styles.inlineCard}>
+                      <CardContent className={styles.compForm}>
+                        <div className={styles.compRow}>
+                          <label className={styles.field}>
+                            <span>Competency name *</span>
+                            <input value={compName} onChange={(e) => setCompName(e.target.value)} placeholder="e.g. System Design"/>
+                          </label>
+                          <label className={styles.field} style={{ maxWidth: 90 }}>
+                            <span>Weight (1–100)</span>
+                            <input type="number" min={1} max={100} value={compWeight} onChange={(e) => setCompWeight(e.target.value)}/>
+                          </label>
+                        </div>
+                        <label className={styles.field}>
+                          <span>Description <small>optional</small></span>
+                          <input value={compDesc} onChange={(e) => setCompDesc(e.target.value)} placeholder="What does mastery look like?"/>
+                        </label>
+                        <Button size="sm" className={styles.addBtn} onClick={addCompetency}
+                          disabled={!compName.trim() || pendingAction === 'addComp'}>
+                          {pendingAction === 'addComp' ? <LoaderCircle className={styles.spin} size={13}/> : <Plus size={13}/>} Add competency
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    {/* List */}
+                    {competencies.length === 0 && (
+                      <div className={styles.listEmpty}><span>No competencies yet — add your first above.</span></div>
+                    )}
+                    {competencies.map((c) => (
+                      <div key={c.id} className={styles.compItem}>
+                        <div className={styles.compItemInfo}>
+                          <strong>{c.name}</strong>
+                          <span>{c.description || c.competencyKey}</span>
+                        </div>
+                        <div className={styles.compItemRight}>
+                          <span className={styles.weightBadge}>{c.weight}%</span>
+                          <button className={styles.deleteBtn} aria-label="Remove" onClick={() => void deleteCompetency(c.id)}
+                            disabled={pendingAction === `delComp:${c.id}`}>
+                            {pendingAction === `delComp:${c.id}` ? <LoaderCircle className={styles.spin} size={12}/> : <X size={12}/>}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Tab: Blueprint ────────────────────────────────── */}
+                {activeTab === 'blueprint' && (
+                  <div className={styles.tabPanel}>
+                    <div className={styles.tabIntro}>
+                      <strong>Interview blueprint</strong>
+                      <span>Configure the five-role, ten-minute showcase panel for this job.</span>
+                    </div>
+                    {interviews.length > 0 ? (
+                      <div className={styles.blueprintList}>
+                        {interviews.map((item) => (
+                          <Card key={item.id} className={styles.blueprintCard}>
+                            <div className={styles.blueprintCardInner}>
+                              <div>
+                                <strong>{item.title}</strong>
+                                <span>{item.roleTitle}</span>
+                                <span className={styles.bpDate}>{new Date(item.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              <span className={`${styles.status} ${item.status === 'ready' ? styles.status_ready : ''}`}>{item.status}</span>
+                            </div>
+                            <div className={styles.roleChips}>
+                              {DEMO_ROLES.map((r, i) => (
+                                <span key={r}><b>{i + 1}</b>{roleNames[r] ?? r}</span>
+                              ))}
+                            </div>
+                          </Card>
+                        ))}
+                        <p className={styles.bpNote}>To create a new blueprint for this job, fill the form below.</p>
+                      </div>
+                    ) : null}
+                    <Card className={`${styles.panel} ${styles.inlineCard}`}>
+                      <CardContent className={styles.form}>
+                        <label className={styles.field}><span>Role title</span><input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Frontend Engineer"/></label>
+                        <label className={styles.field}><span>Role context and requirements</span><textarea value={jdText} onChange={(e) => setJdText(e.target.value)} rows={5}/></label>
+                        <label className={styles.field}><span>Desired outcomes <small>one per line</small></span><textarea value={outcomes} onChange={(e) => setOutcomes(e.target.value)} rows={4}/></label>
+                        <label className={styles.field}><span>Must-ask questions <small>optional, one per line</small></span><textarea value={mustAsk} onChange={(e) => setMustAsk(e.target.value)} rows={3} placeholder="Add questions the panel must cover"/></label>
+                        <div className={styles.panelBlock}>
+                          <span>Server-controlled panel sequence</span>
+                          <div className={styles.roleChips}>{DEMO_ROLES.map((r, i) => <span key={r}><b>{i + 1}</b>{roleNames[r] ?? r}</span>)}</div>
+                        </div>
+                        <div className={styles.bpMeta}><Clock3 size={11}/> {DEMO_DURATION_MINUTES} min · fixed showcase format</div>
+                        <Button className={styles.createButton} onClick={createBlueprint}
+                          disabled={pendingAction === 'createBp' || !roleTitle.trim() || !jdText.trim()}>
+                          {pendingAction === 'createBp' ? <><Activity className={styles.spin} size={15}/> Generating plan…</> : <><Plus size={15}/> {interviews.length > 0 ? 'Create new blueprint' : 'Generate blueprint'}</>}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Tab: Candidates ───────────────────────────────── */}
+                {activeTab === 'candidates' && (
+                  <div className={styles.tabPanel}>
+                    <div className={styles.tabIntro}>
+                      <strong>Candidates</strong>
+                      <span>Add candidates, attach resumes, and generate private interview links.</span>
+                    </div>
+                    {/* Add candidate form */}
+                    <Card className={styles.inlineCard}>
+                      <CardContent className={styles.candidateAddForm}>
+                        <div className={styles.compRow}>
+                          <label className={styles.field}>
+                            <span>Full name <small>optional</small></span>
+                            <input value={candidateName} onChange={(e) => setCandidateName(e.target.value)} placeholder="Aarav Shah"/>
+                          </label>
+                          <label className={styles.field}>
+                            <span>Email <small>optional</small></span>
+                            <input type="email" value={candidateEmail} onChange={(e) => setCandidateEmail(e.target.value)} placeholder="aarav@example.com"/>
+                          </label>
+                        </div>
+                        <Button size="sm" className={styles.addBtn} onClick={addCandidate}
+                          disabled={(!candidateName.trim() && !candidateEmail.trim()) || pendingAction === 'addCand'}>
+                          {pendingAction === 'addCand' ? <LoaderCircle className={styles.spin} size={13}/> : <Plus size={13}/>} Add candidate
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Candidate list */}
+                    {jobCandidates.length === 0 && (
+                      <div className={styles.listEmpty}><span>No candidates yet — add the first one above.</span></div>
+                    )}
+                    {jobCandidates.map((jc) => {
+                      const link = inviteLinks[jc.id];
+                      return (
+                        <div key={jc.id} className={styles.candidateCard}>
+                          <div className={styles.candidateCardTop}>
+                            <div className={styles.candidateInfo}>
+                              <strong>{jc.candidate.fullName ?? '—'}</strong>
+                              <span>{jc.candidate.email ?? 'No email'}</span>
+                            </div>
+                            <span className={`${styles.stageBadge} ${styles[stageColors[jc.stage] ?? '']}`}>{jc.stage.replace('_', ' ')}</span>
+                          </div>
+
+                          {/* Resume attach */}
+                          <label className={styles.resumeUpload}>
+                            <span className={styles.resumeIcon}>
+                              {pendingAction === `resume:${jc.id}` ? <LoaderCircle className={styles.spin} size={14}/> : <Upload size={14}/>}
+                            </span>
+                            <span>
+                              <strong>{resumeNames[jc.id] ?? 'Attach resume'}</strong>
+                              <small>Optional TXT/Markdown · max 120 KB</small>
+                            </span>
+                            <input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={(e) => void readResume(jc.id, e.target.files?.[0])}/>
+                          </label>
+
+                          {/* Invite actions */}
+                          {!link && (
+                            <Button size="sm" variant="outline" className={styles.inviteBtn}
+                              disabled={pendingAction === `invite:${jc.id}`}
+                              onClick={() => void generateInvite(jc.id, jc.candidate)}>
+                              {pendingAction === `invite:${jc.id}` ? <><LoaderCircle className={styles.spin} size={13}/> Generating…</> : <><Link2 size={13}/> Generate link</>}
+                            </Button>
+                          )}
+                          {link && (
+                            <div className={styles.inviteBox}>
+                              <div className={styles.inviteBoxHead}><CheckCircle2 size={13}/><strong>Invitation ready</strong><small>7 days · single-use</small></div>
+                              <div className={styles.linkRow}>
+                                <input readOnly value={link} onFocus={(e) => e.currentTarget.select()}/>
+                                <Button size="sm" onClick={() => void copyLink(jc.id)} disabled={pendingAction === `copy:${jc.id}`}>
+                                  {pendingAction === `copy:${jc.id}` ? <LoaderCircle className={styles.spin} size={13}/> : copiedId === jc.id ? <Check size={13}/> : <Clipboard size={13}/>}
+                                  {copiedId === jc.id ? 'Copied' : 'Copy'}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Tab: Pipeline ─────────────────────────────────── */}
+                {activeTab === 'pipeline' && (
+                  <div className={styles.tabPanel}>
+                    <div className={styles.tabIntro}>
+                      <strong>Interview pipeline</strong>
+                      <span>Track live and completed sessions for all candidates in this job.</span>
+                    </div>
+                    {sessions.length === 0 && (
+                      <div className={styles.listEmpty}><span>No sessions yet. Candidates will appear here once they start.</span></div>
+                    )}
+                    {sessions.map((s) => (
+                      <div key={s.id} className={styles.sessionCard}>
+                        <span className={styles.sessionStatus}>
+                          <i className={s.status === 'completed' || s.health === 'connected' || s.health === 'healthy' ? styles.healthy : styles.warning}/>
+                          <b>{s.status === 'completed' ? 'Completed · analysis ready' : s.status.replace('_', ' ')}</b>
+                          <small>{new Date(s.startedAt).toLocaleString()}</small>
+                        </span>
+                        {s.status === 'completed' && (
+                          <button className={styles.analysisButton}
+                            disabled={pendingAction === `analysis:${s.id}`}
+                            onClick={() => { setPendingAction(`analysis:${s.id}`); router.push(`/company/analysis/${s.id}`); }}>
+                            {pendingAction === `analysis:${s.id}` ? <LoaderCircle className={styles.spin} size={14}/> : <FileText size={14}/>}
+                            Open analysis <ArrowRight size={14}/>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+
+        <footer className={styles.dashboardFoot}>
+          <ShieldCheck size={14}/> Every job, candidate, invitation, session, and report is scoped to your private Google workspace.
+        </footer>
+      </main>
+    </div>
+  );
 }

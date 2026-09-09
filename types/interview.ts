@@ -69,6 +69,9 @@ export const InterviewCreateSchema = z.object({
     z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_-]*-\d+$/, 'Use a Linear issue identifier such as ENG-123').max(80).optional(),
   ),
   instructions: z.string().trim().max(4_000).default(''),
+  // Optional: scope this blueprint to a job in the recruiter flow.
+  // Null/undefined keeps existing definitions fully backward-compatible.
+  jobId: z.string().uuid().optional(),
 }).superRefine((value, context) => {
   if (value.demoMode && new Set(value.panelRoles).size !== PANEL_ROLES.length) {
     context.addIssue({ code: 'custom', path: ['panelRoles'], message: 'The showcase requires all five panel roles.' });
@@ -244,6 +247,8 @@ export type CompetencyState = Record<
 export interface InterviewDefinitionRecord extends InterviewCreateInput {
   id: string;
   organizationId: string;
+  /** Nullable bridge to the Hiring Graph — populated by the recruiter flow. */
+  jobId?: string;
   status: 'draft' | 'ready';
   plan: InterviewPlan | null;
   planVersion: number;
@@ -274,6 +279,8 @@ export interface InvitationRecord {
   candidateName: string | null;
   candidateEmail: string | null;
   resumePath: string | null;
+  /** Nullable bridge to the Hiring Graph — populated by the recruiter flow. */
+  jobCandidateId?: string;
   createdAt: string;
 }
 

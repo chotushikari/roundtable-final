@@ -77,6 +77,7 @@ function interviewFromRow(row: Record<string, unknown>): InterviewDefinitionReco
     demoMode: row.demo_mode === true,
     linearIssueIdentifier: row.linear_issue_identifier ? String(row.linear_issue_identifier) : undefined,
     instructions: String(row.instructions ?? ''),
+    jobId: row.job_id ? String(row.job_id) : undefined,
     status: row.status as InterviewDefinitionRecord['status'],
     plan: (row.plan as InterviewPlan | null) ?? null,
     planVersion: Number(row.plan_version ?? 0),
@@ -98,6 +99,7 @@ function invitationFromRow(row: Record<string, unknown>): InvitationRecord {
     candidateName: row.candidate_name ? String(row.candidate_name) : null,
     candidateEmail: row.candidate_email ? String(row.candidate_email) : null,
     resumePath: row.resume_path ? String(row.resume_path) : null,
+    jobCandidateId: row.job_candidate_id ? String(row.job_candidate_id) : undefined,
     createdAt: String(row.created_at),
   };
 }
@@ -198,6 +200,7 @@ export const interviewStore = {
         demo_mode: input.demoMode ?? false,
         linear_issue_identifier: input.linearIssueIdentifier ?? null,
         instructions: input.instructions,
+        job_id: input.jobId ?? null,
       })
       .select('*')
       .single();
@@ -384,6 +387,7 @@ export const interviewStore = {
         candidate_name: record.candidateName,
         candidate_email: record.candidateEmail,
         resume_path: record.resumePath,
+        job_candidate_id: record.jobCandidateId ?? null,
       })
       .select('*')
       .single();

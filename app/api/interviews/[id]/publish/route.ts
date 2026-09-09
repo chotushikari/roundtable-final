@@ -11,6 +11,8 @@ const PublishSchema = z.object({
   candidateEmail: z.string().trim().email().max(320).nullable().optional(),
   resumeText: z.string().max(30_000).optional(),
   expiresInDays: z.number().int().min(1).max(7).default(7),
+  // Optional: scopes the invitation to a job_candidate record.
+  jobCandidateId: z.string().uuid().optional(),
 });
 
 function applicationBaseUrl(request: Request): string {
@@ -44,6 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       candidateName: body.candidateName ?? null,
       candidateEmail: body.candidateEmail ?? null,
       resumePath: null,
+      jobCandidateId: body.jobCandidateId ?? undefined,
       createdAt,
     });
     if (body.resumeText?.trim()) {
