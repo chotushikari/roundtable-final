@@ -46,7 +46,7 @@ npm run doctor
 npm run dev
 ```
 
-Apply every migration in [supabase/migrations](supabase/migrations) in filename order before using company or candidate flows. Configure these values in `.env.local` and in Vercel:
+Apply every migration in [supabase/migrations](supabase/migrations) in filename order before using company or candidate flows. `202609100001_hiring_graph_foundation.sql` is additive: it introduces Job, Job Competency, Candidate, Job Candidate, Integrity Event, Human Decision, Audit Log, and Notification records while retaining the existing organization, interview definition/version, invitation, session, evidence, and assessment contracts. Configure these values in `.env.local` and in Vercel:
 
 - `NEXT_PUBLIC_AGORA_APP_ID`, `NEXT_AGORA_APP_CERTIFICATE`
 - `APP_BASE_URL`

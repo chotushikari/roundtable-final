@@ -23,4 +23,4 @@
 - `lib/company-report.ts`: stable company-facing completed-interview projection, including a bounded per-turn adaptation trail rather than private controller state.
 - `app/api/sessions/[id]/report`: company-authenticated report endpoint; only completed sessions return a report.
 - `lib/assessment-prompt.ts`: bounded quote catalog and validated narrative-only report enrichment.
-- `supabase/migrations`: schema, RLS, Realtime projection, retention.
+- `supabase/migrations`: schema, RLS, Realtime projection, retention, and the additive Hiring Graph foundation that keeps the interview runtime compatible while introducing Job/Candidate ownership.
