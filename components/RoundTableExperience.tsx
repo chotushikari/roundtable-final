@@ -833,7 +833,10 @@ export function RoundTableExperience() {
     setVoiceBusy(true);
     setCompanionStartSignal((signal) => signal + 1);
   }, []);
-  activateCompanionRef.current = activateCompanion;
+
+  useEffect(() => {
+    activateCompanionRef.current = activateCompanion;
+  }, [activateCompanion]);
 
   // Keyboard arrow navigation
   useEffect(() => {

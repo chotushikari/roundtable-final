@@ -28,11 +28,14 @@ const analysis: TurnAnalysisRecord = {
   decision: { activeSpeakerRole: 'product', objective: 'Ask for customer impact', modality: 'voice', difficulty: 3, reasonCode: 'cross_functional_gap', remainingCoverage: [], roleHandoff: true },
   responseText: 'What customer outcome improved?', model: 'test', createdAt: turn.createdAt,
 };
+const followUpTurn: TranscriptTurnRecord = {
+  id: crypto.randomUUID(), sessionId, sequence: 2, speaker: 'interviewer', speakerRole: 'product', text: 'What customer outcome improved?', status: 'final', dedupeKey: 'interviewer-2', createdAt: '2026-09-05T10:02:05.000Z',
+};
 
 test('company report contains only a stable evidence projection', () => {
   const assessment: AssessmentRecord = {
     id: crypto.randomUUID(), sessionId,
-    assessment: buildEvidenceAssessment({ plan, planVersion: 1, roles: definition.panelRoles, turns: [turn], analyses: [analysis] }),
+    assessment: buildEvidenceAssessment({ plan, planVersion: 1, roles: definition.panelRoles, turns: [turn, followUpTurn], analyses: [analysis] }),
     releasedAt: null, createdAt: turn.createdAt, updatedAt: turn.createdAt,
   };
   const session: InterviewSessionRecord = {
@@ -40,11 +43,15 @@ test('company report contains only a stable evidence projection', () => {
     status: 'completed', connectionHealth: 'connected', channelName: 'test', rtcUid: '1', agentUid: '2', agoraAgentId: null, llmTokenHash: 'hash', activeRole: 'product', previousRole: 'technical', consecutiveRoleTurns: 1, currentModality: 'voice', phase: 'wrap_up', competencyState: {}, askedMustAsk: ['Explain a trade-off'], coveredTopics: ['cache'], pendingQuestion: null, stateVersion: 1, toolRunCount: 0, startedAt: '2026-09-05T10:00:00.000Z', completedAt: '2026-09-05T10:05:00.000Z', expiresAt: '2026-09-05T11:00:00.000Z',
   };
   const version: InterviewVersionRecord = { id: session.interviewVersionId, interviewId: definition.id, organizationId, version: 1, definition, plan, promptVersion: 'test', createdAt: session.startedAt };
-  const report = buildCompanyInterviewReport({ session, invitation: { id: session.invitationId, interviewId: definition.id, interviewVersionId: version.id, organizationId, tokenHash: 'hash', expiresAt: session.expiresAt, revokedAt: null, claimedAt: session.startedAt, candidateName: 'Asha', candidateEmail: 'asha@example.test', resumePath: null, createdAt: session.startedAt }, version, assessment, turns: [turn], analyses: [analysis], artifacts: { code: { id: crypto.randomUUID(), sessionId, type: 'code', version: 2, content: { language: 'typescript', source: 'function cache() { return true; }' }, createdAt: turn.createdAt, updatedAt: turn.createdAt }, canvas: null }, toolRuns: [] });
+  const report = buildCompanyInterviewReport({ session, invitation: { id: session.invitationId, interviewId: definition.id, interviewVersionId: version.id, organizationId, tokenHash: 'hash', expiresAt: session.expiresAt, revokedAt: null, claimedAt: session.startedAt, candidateName: 'Asha', candidateEmail: 'asha@example.test', resumePath: null, createdAt: session.startedAt }, version, assessment, turns: [turn, followUpTurn], analyses: [analysis], artifacts: { code: { id: crypto.randomUUID(), sessionId, type: 'code', version: 2, content: { language: 'typescript', source: 'function cache() { return true; }' }, createdAt: turn.createdAt, updatedAt: turn.createdAt }, canvas: null }, toolRuns: [] });
   assert.equal(report.session.durationSeconds, 300);
   assert.equal(report.candidate.name, 'Asha');
   assert.deepEqual(report.coverage.mustAsk, [{ question: 'Explain a trade-off', status: 'asked' }]);
   assert.ok(report.transcript[0].evidenceReferences.includes('Competency: Technical execution'));
+  assert.equal(report.transcript[0].adaptation.vague, false);
+  assert.equal(report.transcript[0].adaptation.askReason, null);
+  assert.equal(report.transcript[1].adaptation.askReason, 'cross_functional_gap');
+  assert.equal(report.transcript[1].adaptation.roleHandoff, true);
   assert.deepEqual(report.workspace.code.functions, ['cache']);
   assert.equal(report.summary.humanReviewRequired, true);
 });

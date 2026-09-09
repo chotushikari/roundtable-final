@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Editor from '@monaco-editor/react';
-import { ArrowUpRight, Braces, Check, CircleAlert, Copy, LoaderCircle, Network, ShieldCheck, Sparkles, UserRoundSearch } from 'lucide-react';
-import type { CompanyInterviewReport, EvidenceRef, PanelRole } from '@/types/interview';
+import { ArrowUpRight, Braces, Check, CircleAlert, CircleHelp, Compass, Copy, LoaderCircle, Network, Repeat2, ShieldCheck, Sparkles, TriangleAlert, UserRoundSearch } from 'lucide-react';
+import type { CompanyInterviewReport, Contradiction, EvidenceRef, PanelRole, TurnAdaptation } from '@/types/interview';
 
 const ExcalidrawBoard = dynamic(() => import('./ExcalidrawBoard').then((module) => module.ExcalidrawBoard), {
   ssr: false,
@@ -18,6 +18,37 @@ const tabs: Array<{ id: Tab; label: string }> = [
 ];
 const roleLabel = (role: PanelRole) => role === 'hiring_manager' ? 'Hiring Manager' : role === 'behavioral' ? 'Behavioural' : role[0].toUpperCase() + role.slice(1).replace('_', ' ');
 const duration = (seconds: number | null) => seconds === null ? 'Unavailable' : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+
+const REASON_LABELS: Record<string, { label: string; adaptive: boolean }> = {
+  clarify_vague: { label: 'Clarifying a vague answer', adaptive: true },
+  resolve_contradiction: { label: 'Resolving a contradiction', adaptive: true },
+  weak_competency: { label: 'Probing a weak competency', adaptive: true },
+  cross_functional_gap: { label: 'Cross-functional gap', adaptive: true },
+  workspace_follow_up: { label: 'Workspace follow-up', adaptive: true },
+  resume_verification: { label: 'Verifying résumé evidence', adaptive: true },
+  must_ask: { label: 'Required question', adaptive: false },
+  background: { label: 'Background', adaptive: false },
+  panel_coverage: { label: 'Panel coverage', adaptive: false },
+  conversation_control: { label: 'Conversation control', adaptive: false },
+  balanced_rotation: { label: 'Balanced rotation', adaptive: false },
+  wrap_up: { label: 'Wrapping up', adaptive: false },
+  fallback: { label: 'Fallback', adaptive: false },
+};
+
+function WhyAsked({ adaptation }: { adaptation: TurnAdaptation }) {
+  if (!adaptation.askReason) return null;
+  const meta = REASON_LABELS[adaptation.askReason];
+  return <div className="mt-3 flex flex-wrap items-center gap-1.5"><span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-medium ${meta?.adaptive ? 'border-[#5b4a86] bg-[#a78bfa14] text-[#c4b5fd]' : 'border-[#333] bg-[#1b1b1b] text-[#8a8a8a]'}`}><Compass size={10}/>{meta?.label ?? adaptation.askReason.replace(/_/g, ' ')}</span>{adaptation.askDifficulty !== null && <span className="rounded-full border border-[#333] bg-[#1b1b1b] px-2 py-1 font-mono text-[9px] text-[#8a8a8a]">L{adaptation.askDifficulty}</span>}{adaptation.roleHandoff && <span className="inline-flex items-center gap-1 rounded-full border border-[#333] bg-[#1b1b1b] px-2 py-1 text-[9px] text-[#8a8a8a]"><Repeat2 size={10}/>Role handoff</span>}</div>;
+}
+
+function ContradictionCard({ item }: { item: Contradiction }) {
+  return <div className="rounded-lg border border-[#6d3535] bg-[#f871710d] p-2.5 text-[11px] leading-5"><div className="flex items-center gap-2 font-semibold text-[#e59a9a]"><TriangleAlert size={13}/>Potential inconsistency</div><p className="mt-1.5 text-[#d0a0a0]">{item.explanation}</p><div className="mt-2 grid gap-1.5 border-t border-[#5a2e2e] pt-2 text-[10px] text-[#b98c8c]"><span>Earlier: “{item.priorQuote}”</span><span>Later: “{item.currentQuote}”</span></div></div>;
+}
+
+function AnswerFlags({ adaptation }: { adaptation: TurnAdaptation }) {
+  if (!adaptation.vague && adaptation.contradictions.length === 0) return null;
+  return <div className="mt-3 grid gap-2">{adaptation.vague && <div className="flex gap-2 rounded-lg border border-[#5c4a22] bg-[#eab75a0d] p-2.5 text-[11px] leading-5 text-[#e0c184]"><CircleHelp size={13} className="mt-0.5 shrink-0"/><span><strong>Needed more detail.</strong> {adaptation.vagueReason || 'The answer lacked a specific example, personal action, or measurable result.'}</span></div>}{adaptation.contradictions.map((item, index) => <ContradictionCard key={index} item={item}/>)}</div>;
+}
 
 function Evidence({ evidence, onJump }: { evidence: EvidenceRef[]; onJump: (reference: EvidenceRef) => void }) {
   if (!evidence.length) return <p className="mt-3 text-xs text-[#666]">No directly supported evidence.</p>;
@@ -37,6 +68,10 @@ export function CompanyInterviewReportView({ report, onRelease, releasePending =
   const observed = report.competencies.filter((item) => item.rating !== null);
   const average = useMemo(() => observed.length ? observed.reduce((sum, item) => sum + (item.rating ?? 0), 0) / observed.length : null, [observed]);
   const jump = (reference: EvidenceRef) => { if (reference.artifactVersionId) { setSelectedTurnId(null); setTab('workspace'); } else { setSelectedTurnId(reference.turnId ?? null); setTab('transcript'); } };
+
+  useEffect(() => {
+    if (tab === 'transcript' && selectedTurnId) document.getElementById(`turn-${selectedTurnId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [selectedTurnId, tab]);
 
   return <section className="overflow-hidden rounded-2xl border border-[#2b2b2b] bg-[#101010] text-[#ededed] shadow-[0_32px_100px_rgba(0,0,0,.3)]">
     <header className="border-b border-[#292929] bg-[radial-gradient(circle_at_90%_0%,rgba(62,207,142,.08),transparent_35%),#131313] px-6 py-7 lg:px-8">
@@ -64,7 +99,7 @@ export function CompanyInterviewReportView({ report, onRelease, releasePending =
 
       {tab === 'panel' && <div className="grid gap-4 lg:grid-cols-2">{report.roleViews.map((view, index) => <article key={view.role} className="rounded-xl border border-[#2b2b2b] bg-[#151515] p-5"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg border border-[#345443] bg-[#3ecf8e12] font-mono text-[10px] text-[#3ecf8e]">0{index + 1}</span><div><h3 className="font-semibold">{roleLabel(view.role)}</h3><p className="text-[10px] text-[#666]">Panel perspective</p></div></div><p className="mt-4 text-sm leading-6 text-[#b9b9b9]">{view.summary}</p><Evidence evidence={view.evidence} onJump={jump}/></article>)}</div>}
 
-      {tab === 'transcript' && <div className="mx-auto grid max-w-4xl gap-3">{report.transcript.map((turn) => <article id={`turn-${turn.id}`} key={turn.id} className={`rounded-xl border p-4 transition ${selectedTurnId === turn.id ? 'border-[#3ecf8e] bg-[#173326]' : 'border-[#292929] bg-[#151515]'}`}><div className="flex items-center justify-between gap-3"><span className={`text-xs font-semibold ${turn.speaker === 'candidate' ? 'text-[#dcdcdc]' : 'text-[#3ecf8e]'}`}>{turn.speaker === 'candidate' ? report.candidate.name ?? 'Candidate' : roleLabel(turn.speakerRole ?? 'technical')}</span><span className="font-mono text-[9px] text-[#666]">TURN {turn.sequence} · {turn.status.toUpperCase()}</span></div><p className="mt-3 text-sm leading-6 text-[#bdbdbd]">{turn.text}</p>{turn.evidenceReferences.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{turn.evidenceReferences.map((ref) => <span key={ref} className="rounded-full border border-[#355542] bg-[#3ecf8e0d] px-2 py-1 text-[9px] text-[#58d99d]">{ref}</span>)}</div>}</article>)}</div>}
+      {tab === 'transcript' && <div className="mx-auto grid max-w-4xl gap-3">{report.transcript.map((turn) => <article id={`turn-${turn.id}`} key={turn.id} className={`scroll-mt-24 rounded-xl border p-4 transition ${selectedTurnId === turn.id ? 'border-[#3ecf8e] bg-[#173326]' : 'border-[#292929] bg-[#151515]'}`}><div className="flex items-center justify-between gap-3"><span className={`text-xs font-semibold ${turn.speaker === 'candidate' ? 'text-[#dcdcdc]' : 'text-[#3ecf8e]'}`}>{turn.speaker === 'candidate' ? report.candidate.name ?? 'Candidate' : roleLabel(turn.speakerRole ?? 'technical')}</span><span className="font-mono text-[9px] text-[#666]">TURN {turn.sequence} · {turn.status.toUpperCase()}</span></div>{turn.speaker === 'interviewer' && <WhyAsked adaptation={turn.adaptation}/>}<p className="mt-3 text-sm leading-6 text-[#bdbdbd]">{turn.text}</p>{turn.speaker === 'candidate' && <AnswerFlags adaptation={turn.adaptation}/>} {turn.evidenceReferences.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{turn.evidenceReferences.map((ref) => <span key={ref} className="rounded-full border border-[#355542] bg-[#3ecf8e0d] px-2 py-1 text-[9px] text-[#58d99d]">{ref}</span>)}</div>}</article>)}</div>}
 
       {tab === 'workspace' && (
         <div className="grid gap-6">

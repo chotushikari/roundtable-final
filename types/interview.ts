@@ -137,6 +137,7 @@ export const ContradictionSchema = z.object({
   currentQuote: z.string().trim().max(500),
   explanation: z.string().trim().min(1).max(500),
 });
+export type Contradiction = z.infer<typeof ContradictionSchema>;
 
 export const PanelTurnAnalysisSchema = z.object({
   // Models sometimes return a partial list. `validateEvidence` fills every
@@ -376,6 +377,16 @@ export interface AssessmentRecord {
   updatedAt: string;
 }
 
+/** A small, recruiter-facing explanation of a turn transition. */
+export interface TurnAdaptation {
+  askReason: ControllerDecision['reasonCode'] | null;
+  askDifficulty: Difficulty | null;
+  roleHandoff: boolean;
+  vague: boolean;
+  vagueReason: string;
+  contradictions: Contradiction[];
+}
+
 /**
  * Stable, company-facing projection of a completed interview. This is
  * deliberately separate from controller state, events, and raw artifacts so
@@ -406,7 +417,7 @@ export interface CompanyInterviewReport {
     rolesWithEvidence: PanelRole[];
   };
   unresolvedContradictions: FinalAssessment['unresolvedContradictions'];
-  transcript: Array<Pick<TranscriptTurnRecord, 'id' | 'sequence' | 'speaker' | 'speakerRole' | 'text' | 'status' | 'createdAt'> & { evidenceReferences: string[] }>;
+  transcript: Array<Pick<TranscriptTurnRecord, 'id' | 'sequence' | 'speaker' | 'speakerRole' | 'text' | 'status' | 'createdAt'> & { evidenceReferences: string[]; adaptation: TurnAdaptation }>;
   workspace: {
     code: {
       available: boolean;

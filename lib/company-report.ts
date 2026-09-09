@@ -1,10 +1,12 @@
 import type {
   AssessmentRecord,
   CompanyInterviewReport,
+  ControllerDecision,
   InterviewSessionRecord,
   InterviewVersionRecord,
   InvitationRecord,
   TranscriptTurnRecord,
+  TurnAdaptation,
   TurnAnalysisRecord,
   ToolRunRecord,
   WorkspaceArtifactRecord,
@@ -121,6 +123,29 @@ export function buildCompanyInterviewReport({
   const linearRuns = toolRuns.filter((run) => run.name.startsWith('linear_'));
   const posted = [...linearRuns].reverse().find((run) => run.name === 'linear_post_comment' && run.status === 'completed');
   const postedOutput = record(posted?.output);
+  const analysisByTurn = new Map(analyses.map((item) => [item.turnId, item]));
+  const decisionByInterviewerTurn = new Map<string, ControllerDecision>();
+  let pendingDecision: ControllerDecision | null = null;
+  for (const turn of [...turns].sort((a, b) => a.sequence - b.sequence)) {
+    if (turn.speaker === 'interviewer' && pendingDecision) {
+      decisionByInterviewerTurn.set(turn.id, pendingDecision);
+      pendingDecision = null;
+    }
+    const analysis = analysisByTurn.get(turn.id);
+    if (analysis) pendingDecision = analysis.decision;
+  }
+  const adaptationFor = (turn: TranscriptTurnRecord): TurnAdaptation => {
+    const analysis = analysisByTurn.get(turn.id)?.analysis;
+    const decision = decisionByInterviewerTurn.get(turn.id);
+    return {
+      askReason: decision?.reasonCode ?? null,
+      askDifficulty: decision?.difficulty ?? null,
+      roleHandoff: decision?.roleHandoff ?? false,
+      vague: analysis?.vague ?? false,
+      vagueReason: analysis?.vagueReason ?? '',
+      contradictions: analysis?.contradictions ?? [],
+    };
+  };
   return {
     session: {
       id: session.id,
@@ -162,6 +187,7 @@ export function buildCompanyInterviewReport({
       status: turn.status,
       createdAt: turn.createdAt,
       evidenceReferences: evidence.get(turn.id) ?? [],
+      adaptation: adaptationFor(turn),
     })),
     workspace: { code: codeSummary(artifacts.code), canvas: canvasSummary(artifacts.canvas) },
     integrations: {

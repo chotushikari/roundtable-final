@@ -309,8 +309,8 @@ html {
 }
 
 @keyframes panel-avatar-speaking {
-  0%, 100% { transform: scale(1); box-shadow: 0 10px 18px rgba(8, 145, 178, 0.22); }
-  50% { transform: scale(1.055); box-shadow: 0 18px 30px rgba(8, 145, 178, 0.38); }
+  0%, 100% { transform: scale(1); box-shadow: var(--avatar-glow-base, 0 10px 18px rgba(8, 145, 178, 0.22)); }
+  50% { transform: scale(1.055); box-shadow: var(--avatar-glow-speak, 0 18px 30px rgba(8, 145, 178, 0.38)); }
 }
 
 .panel-avatar-speaking {

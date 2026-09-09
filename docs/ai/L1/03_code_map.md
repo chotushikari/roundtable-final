@@ -10,7 +10,7 @@
 - `app/page.tsx`, `app/loading.tsx`: public experience entry point and reduced-motion-safe transition mark.
 - `components/CompanyDashboard.tsx`: Google-only interviewer auth, auto-provisioned private workspace, interview builder, recruiter resume/link flow, and live/completed session pipeline.
 - `components/CompanyAnalysisPage.tsx`, `app/company/analysis/[sessionId]`: authenticated standalone completed-analysis route and candidate-summary release flow.
-- `components/CompanyInterviewReportView.tsx`: evidence-linked Overview, Competencies, Panel views, Transcript, and Workspace report sections.
+- `components/CompanyInterviewReportView.tsx`: evidence-linked Overview, Competencies, Panel views, Transcript, and Workspace report sections; transcript entries expose bounded transition reasons, difficulty, role handoffs, and validated vagueness/contradiction flags.
 - `components/InterviewWorkspace.tsx`: Monaco, one embedded Excalidraw canvas, autosaved drafts, and checkpoints.
 - `app/api/interviews`, `invitations`, `sessions`: product and lifecycle APIs, including responsive background agent startup.
 - `app/api/ai/chat/completions`: authenticated Agora custom LLM boundary.
@@ -20,7 +20,7 @@
 - `lib/interview-store.ts`: Supabase/in-memory persistence adapter.
 - `lib/agora-server.ts`: combined tokens and managed-agent start/stop.
 - `lib/assessment.ts`: evidence-only final report combining validated transcript quotes with conservative completed-workspace artifact-version evidence.
-- `lib/company-report.ts`: stable company-facing completed-interview projection.
+- `lib/company-report.ts`: stable company-facing completed-interview projection, including a bounded per-turn adaptation trail rather than private controller state.
 - `app/api/sessions/[id]/report`: company-authenticated report endpoint; only completed sessions return a report.
 - `lib/assessment-prompt.ts`: bounded quote catalog and validated narrative-only report enrichment.
 - `supabase/migrations`: schema, RLS, Realtime projection, retention.
