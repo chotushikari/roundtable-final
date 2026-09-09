@@ -177,6 +177,26 @@ test('vague answers receive clarification priority', () => {
   assert.equal(result.activeSpeakerRole, 'technical');
 });
 
+test('evidence-backed contradictions receive neutral reconciliation priority', () => {
+  const result = chooseNextDecision({
+    session: session(),
+    interview,
+    plan,
+    priorAnalyses: [],
+    analysis: analysis({
+      contradictions: [{
+        priorTurnId: 'prior-turn',
+        priorQuote: 'I owned the service.',
+        currentQuote: 'I did not own the service.',
+        explanation: 'Ownership changed between answers.',
+      }],
+    }),
+  });
+  assert.equal(result.reasonCode, 'resolve_contradiction');
+  assert.equal(result.activeSpeakerRole, 'technical');
+  assert.match(result.objective, /Ownership changed between answers/);
+});
+
 test('two consistent high-confidence signals raise difficulty by only one', () => {
   const first = updateCompetencyState({}, plan, analysis({ competencyEvidence: [{ competencyId: 'technical_execution', rating: 4, confidence: 0.9, quote: 'implemented' }] }));
   const second = updateCompetencyState(first, plan, analysis({ competencyEvidence: [{ competencyId: 'technical_execution', rating: 4, confidence: 0.9, quote: 'tested' }] }));
