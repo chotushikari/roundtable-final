@@ -42,8 +42,12 @@ export function SimliAvatarStage({ sessionId, role, state, audioTrack, interrupt
         simli.on('start', () => { if (!cancelled) { setStatus('live'); setDetail('Live AI interviewer video'); } });
         simli.on('error', () => { if (!cancelled) { setStatus('fallback'); setDetail('Voice interview continues without video'); } });
         clientRef.current = simli;
-        await simli.start();
-        if (!cancelled) simli.listenToMediastreamTrack(audioTrack.getMediaStreamTrack());
+        // Simli resolves start only after its first rendered video frame. Feed
+        // the already-subscribed Agora agent track immediately so an idle
+        // frame is not waiting on the very audio that follows start().
+        const startPromise = simli.start();
+        simli.listenToMediastreamTrack(audioTrack.getMediaStreamTrack());
+        await startPromise;
       } catch (error) {
         if (!cancelled) { setStatus('fallback'); setDetail(error instanceof Error ? error.message : 'Voice interview continues without video'); }
       }
@@ -69,7 +73,14 @@ export function SimliAvatarStage({ sessionId, role, state, audioTrack, interrupt
         <span className={`rounded-full border px-3 py-1 font-mono text-[10px] ${isLive ? 'border-[#2d7654] bg-[#143a28] text-[#8bf0bc]' : 'border-[#3a403c] bg-[#1b211e] text-[#b8c1bb]'}`}>{isLive ? 'VIDEO LIVE' : 'VOICE LIVE'}</span>
       </div>
       <div className="relative grid min-h-[20rem] place-items-center bg-[radial-gradient(circle_at_50%_20%,rgba(62,207,142,.16),transparent_36%),linear-gradient(145deg,#17241e,#0d100f_65%)] p-5">
-        <video ref={videoRef} autoPlay playsInline muted className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${isLive ? 'opacity-100' : 'opacity-0'}`} />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          onLoadedData={() => { setStatus('live'); setDetail('Live AI interviewer video'); }}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${isLive ? 'opacity-100' : 'opacity-0'}`}
+        />
         <audio ref={audioRef} autoPlay muted />
         {!isLive && <div className="relative z-10"><PanelAvatar role={role} state={state} /></div>}
         <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-xl border border-white/10 bg-[#0a0d0bcc] px-3 py-2 text-xs text-[#c7d1cb] backdrop-blur"><span>{detail}</span><span className="capitalize text-[#76dca4]">{state ?? 'ready'}</span></div>
