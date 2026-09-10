@@ -328,7 +328,18 @@ export function chooseNextDecision({
       ...priorAnalyses.map((item) => item.decision.activeSpeakerRole),
       ...completedWorkspaceRoles,
     ]);
-    const next = ordered.find((item) => !answered.has(item));
+    const unaskedDemoRoles = ordered.filter((item) => !answered.has(item));
+    // Showcase mode still guarantees one substantive answer for every panel
+    // perspective, but it deliberately does not force their speaking order.
+    // A cross-functional evidence gap can hand the next turn to the role best
+    // equipped to test it, which makes shared context visible in a short demo.
+    const technicalPositive = analysis.roleFindings.find((item) => item.role === 'technical')?.strengths.length;
+    const productGap = analysis.roleFindings.find((item) => item.role === 'product')?.gaps.length;
+    const next = technicalPositive && productGap && unaskedDemoRoles.includes('product')
+      ? 'product'
+      : unaskedDemoRoles.includes(analysis.recommendedRole)
+        ? analysis.recommendedRole
+        : unaskedDemoRoles[0];
     role = next ?? session.activeRole;
     reasonCode = next ? 'panel_coverage' : 'wrap_up';
     objective = next

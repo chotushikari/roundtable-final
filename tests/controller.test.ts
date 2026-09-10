@@ -300,6 +300,29 @@ test('two-minute demo rotates through every configured panel role', () => {
   assert.equal(afterCustomer.reasonCode, 'panel_coverage');
 });
 
+test('showcase hands technical evidence with a customer-impact gap directly to Product', () => {
+  const demoInterview = {
+    ...interview,
+    demoMode: true,
+    durationMinutes: 10,
+    panelRoles: ['hiring_manager', 'technical', 'product', 'customer', 'behavioral'] as PanelRole[],
+  };
+  const result = chooseNextDecision({
+    session: session({ phase: 'background', activeRole: 'hiring_manager' }),
+    interview: demoInterview,
+    plan,
+    priorAnalyses: [priorRole('hiring_manager')],
+    analysis: analysis({ roleFindings: [
+      { role: 'technical', observations: [], strengths: ['Correct implementation'], gaps: [] },
+      { role: 'product', observations: [], strengths: [], gaps: ['No customer impact'] },
+      { role: 'hiring_manager', observations: [], strengths: [], gaps: [] },
+    ] }),
+  });
+  assert.equal(result.activeSpeakerRole, 'product');
+  assert.equal(result.reasonCode, 'panel_coverage');
+  assert.equal(result.roleHandoff, true);
+});
+
 test('workspace handoffs retain prior roles so the last panel turn wraps instead of repeating Customer', () => {
   const demoInterview = {
     ...interview,

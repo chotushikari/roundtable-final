@@ -18,7 +18,7 @@
 - `app/api/mcp/[grant]`: session-scoped Streamable HTTP MCP endpoint.
 - `lib/interview-controller.ts`: evaluator validation and deterministic next-speaker rules.
 - `app/api/interviews/[id]/plan`, `lib/interview-planner.ts`: server-loaded Job hiring-bar execution, immutable blueprint rubric generation, and adaptive interview scenarios.
-- `lib/interview-demo.ts`: five-role showcase order, opening/closing text, and answered-role progress.
+- `lib/interview-demo.ts`, `lib/interview-controller.ts`: five-role showcase coverage, evidence-prioritized role handoffs, opening/closing text, and answered-role progress.
 - `lib/interview-store.ts`: Supabase/in-memory persistence adapter.
 - `lib/agora-server.ts`: combined tokens and managed-agent start/stop.
 - `lib/interview-tts.ts`, `lib/public-url.ts`: Sarvam-or-MiniMax TTS selection and public Agora callback origin resolution.

@@ -118,6 +118,7 @@ export default function ConversationComponent({
   const [demoProgress, setDemoProgress] = useState<{ roles: string[]; answeredRoles: string[]; closing: boolean } | null>(null);
   const [serverDeadline, setServerDeadline] = useState<string | null>(null);
   const [pendingDemoQuestion, setPendingDemoQuestion] = useState<{ id: string; text: string } | null>(null);
+  const [panelFocus, setPanelFocus] = useState<string | null>(null);
   const deliveredQuestionsRef = useRef(new Set<string>());
   const finishedAgentTurnsRef = useRef(new Set<number>());
 
@@ -144,6 +145,7 @@ export default function ConversationComponent({
           setWorkspacePrompt(data.session.workspacePrompt ?? null);
           setPendingDemoQuestion(data.session.demo?.pendingQuestion ?? null);
           setServerDeadline(data.session.interviewEndsAt ?? null);
+          setPanelFocus(typeof data.session.panelFocus === 'string' ? data.session.panelFocus : null);
         }
       })
       .catch(() => {});
@@ -717,6 +719,7 @@ export default function ConversationComponent({
       activeModality={activeModality}
       activeRole={activeRole}
       activePhase={activePhase}
+      panelFocus={panelFocus}
       sessionId={agoraData.sessionId}
       timeRemainingSeconds={timeRemainingSeconds}
       demoProgress={demoProgress}

@@ -162,6 +162,7 @@ test('showcase ends only after five answers, with pauses and retries preserving 
   ];
   for (let index = 0; index < answers.length; index++) {
     const current = (await interviewStore.getSession(initial.id))!;
+    const pendingRole = current.activeRole;
     const beforePause = await interviewStore.listAnalyses(initial.id);
     // An ASR tail arriving while the next question is interrupted must keep
     // that panel member pending, including Product and Customer.
@@ -187,7 +188,7 @@ test('showcase ends only after five answers, with pauses and retries preserving 
     for (const [fragmentIndex, fragment] of fragments.entries()) {
       await processDemoAnswer({ session: current, answer: fragment, upstreamTurnId: `fragment-${index}-${fragmentIndex}` });
       assert.equal((await interviewStore.listAnalyses(initial.id)).length, index);
-      assert.equal((await interviewStore.getSession(initial.id))?.activeRole, DEMO_ROLES[index]);
+      assert.equal((await interviewStore.getSession(initial.id))?.activeRole, pendingRole);
     }
     await processConversationControlTurn({ session: current, answer: 'Wait, let me think.', control: 'pause', upstreamTurnId: `pause-${index}` });
     await processConversationControlTurn({ session: current, answer: 'Repeat please.', control: 'repeat', upstreamTurnId: `repeat-${index}` });
@@ -198,10 +199,11 @@ test('showcase ends only after five answers, with pauses and retries preserving 
     assert.equal(await processDemoAnswer(args), responses[0]);
     const analyses = await interviewStore.listAnalyses(initial.id);
     const outcome = analyses.at(-1)!;
-    assert.deepEqual(answeredDemoRoles(DEMO_ROLES, analyses), DEMO_ROLES.slice(0, index + 1));
+    const answeredRoles = answeredDemoRoles(DEMO_ROLES, analyses);
+    assert.equal(answeredRoles.length, index + 1);
     assert.equal(outcome.analysis.roleFindings.length, 5);
     if (index < 4) {
-      assert.equal(outcome.decision.activeSpeakerRole, DEMO_ROLES[index + 1]);
+      assert.ok(!answeredRoles.includes(outcome.decision.activeSpeakerRole));
       assert.equal(outcome.decision.reasonCode, 'panel_coverage');
     } else {
       assert.equal(outcome.responseText, DEMO_CLOSING);

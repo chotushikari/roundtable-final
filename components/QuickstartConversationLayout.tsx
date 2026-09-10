@@ -19,6 +19,7 @@ type QuickstartConversationLayoutProps = {
   activePhase?: string;
   demoProgress?: { roles: string[]; answeredRoles: string[]; closing: boolean } | null;
   workspacePrompt?: string | null;
+  panelFocus?: string | null;
 };
 
 export function QuickstartConversationLayout({
@@ -33,6 +34,7 @@ export function QuickstartConversationLayout({
   timeRemainingSeconds,
   activeRole = 'technical',
   activePhase = 'introduction',
+  panelFocus,
   workspacePrompt,
 }: QuickstartConversationLayoutProps) {
   const requestedWorkspace = activeModality === 'code' || activeModality === 'canvas';
@@ -95,6 +97,12 @@ export function QuickstartConversationLayout({
         {/* Visualizer (and potentially small controls) */}
         <main className={`flex min-h-0 min-w-0 flex-col ${focused ? 'order-3 lg:col-start-1 lg:row-start-2' : 'order-1 lg:col-start-2 lg:row-span-2'}`}>
           <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-[#272727] bg-[radial-gradient(circle_at_50%_45%,rgba(62,207,142,.055),transparent_34%),#111] px-4 pb-4 shadow-[0_24px_80px_rgba(0,0,0,.25)]">
+            {panelFocus && !focused && (
+              <div className="mx-auto mt-4 max-w-xl rounded-full border border-[#315142] bg-[#3ecf8e0d] px-4 py-2 text-center text-xs text-[#b9d8c7]" role="status">
+                <span className="mr-2 font-mono text-[9px] font-semibold uppercase tracking-[.14em] text-[#3ecf8e]">Panel focus</span>
+                {panelFocus}
+              </div>
+            )}
             <div className={`flex items-center justify-center overflow-hidden transition-[max-height,opacity] duration-500 motion-reduce:transition-none ${focused ? 'max-h-0 opacity-0' : 'min-h-0 max-h-[70vh] flex-1 opacity-100'}`}>
               {visualizer}
             </div>

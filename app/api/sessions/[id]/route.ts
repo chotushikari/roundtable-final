@@ -6,6 +6,20 @@ import { requireCompanyContext } from '@/lib/supabase-admin';
 import { answeredDemoRoles, demoRoles } from '@/lib/interview-demo';
 import { demoQuestion } from '@/lib/demo-turns';
 
+function candidateSafePanelFocus(reasonCode: string | undefined): string {
+  const messages: Record<string, string> = {
+    clarify_vague: 'The panel is asking for a more concrete example.',
+    resolve_contradiction: 'The panel is reconciling two details before moving on.',
+    weak_competency: 'The panel is exploring an area that still needs evidence.',
+    cross_functional_gap: 'The panel is shifting perspective to test customer and business impact.',
+    workspace_follow_up: 'The panel is moving from discussion into a practical scenario.',
+    must_ask: 'The panel is covering a required part of the role.',
+    panel_coverage: 'The next interviewer brings a different perspective to the same shared context.',
+    balanced_rotation: 'The panel is balancing perspectives while preserving the shared context.',
+  };
+  return messages[reasonCode ?? ''] ?? 'The panel is selecting the next question from the shared interview context.';
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -33,7 +47,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     await requireCandidateSession(request, id);
-    const assessment = await interviewStore.getAssessment(id);
+    const [assessment, analyses] = await Promise.all([
+      interviewStore.getAssessment(id),
+      interviewStore.listAnalyses(id),
+    ]);
     const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
     const demo = version?.definition.demoMode ? {
       roles: demoRoles(version.definition.panelRoles),
@@ -49,6 +66,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         activeRole: session.activeRole,
         currentModality: session.currentModality,
         phase: session.phase,
+        panelFocus: candidateSafePanelFocus(analyses.at(-1)?.decision.reasonCode),
         workspacePrompt: ['code', 'canvas'].includes(session.currentModality) ? session.pendingQuestion : null,
         demo,
         interviewEndsAt: version && session.status === 'in_progress'
