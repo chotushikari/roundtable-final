@@ -4,6 +4,8 @@ Company APIs validate Google-backed Supabase bearer tokens and use an idempotent
 
 The custom LLM ignores caller-provided system messages and model names. Employer, resume, and transcript content are untrusted data. Only literal transcript quotes survive evidence validation. E2B receives no process environment or app secrets, accepts only Python/JavaScript/TypeScript checkpoints, runs a fixed command for 15 seconds, caps output, and permits at most five tool runs.
 
+`SARVAM_API_KEY` is a server-only TTS credential. It must never be added to client-visible environment variables, logs, API responses, examples with a real value, or source control.
+
 The optional camera interaction check requires a visible candidate consent action before camera access. Its Gemini key is server-only. Raw clips are used only for the immediate request and never stored, broadcast, scored, or included in assessment evidence. The result may only communicate whether the prompted interaction was observed, inconclusive, or unavailable; it must never identify a person, determine whether a voice is synthetic, allege deception, infer sensitive traits, or influence an employment decision.
 
 Company reports require organization membership and are available only after completion. The report is an allow-listed projection rather than a database dump: it excludes controller cache, session events, credentials, raw media, and raw workspace content. All assessment claims remain transcript- or artifact-evidence-linked and retain `humanReviewRequired: true`.

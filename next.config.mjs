@@ -5,8 +5,6 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Lets this fixed development tunnel receive Next's HMR and dev assets.
-  allowedDevOrigins: ['francisca-hawknosed-polyphyletically.ngrok-free.dev'],
   images: {
     unoptimized: true,
   },

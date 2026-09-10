@@ -2,13 +2,13 @@
 
 Deploy as one Next.js app on Vercel and one Supabase project. Set all variables from `env.local.example`; keep certificate, service key, signing secret, Groq key, E2B key, and webhook secret server-only. Set `APP_BASE_URL` to the public HTTPS origin so Agora can reach the custom LLM route.
 
+Set `SARVAM_API_KEY` only in local `.env.local` and the Vercel server environment when Sarvam `shubh` should be the primary interview voice. With no key, the application constructs the existing MiniMax voice instead. Restart the local Next.js server after changing this value; provider errors during an active agent session do not trigger a voice swap.
+
 On Vercel, `VERCEL_PROJECT_PRODUCTION_URL` (falling back to `VERCEL_URL`) takes precedence for Agora callbacks and invitation links. This prevents a local or expired tunnel copied through `APP_BASE_URL` from breaking production. Enable only Google in Supabase Authentication, configure its Google OAuth client, and allow the deployed `/company` plus `/company/analysis/**` application redirect URLs.
 
 For a time-limited public submission, `NEXT_PUBLIC_DISABLE_COMPANY_AUTH=true` bypasses the company email gate without switching to process-local storage. The server creates or reuses `PUBLIC_DEMO_ORGANIZATION_ID` (or the fixed demo UUID). This deliberately exposes that organization's company dashboard and completed reports; unset the flag after judging.
 
-When using the configured ngrok development tunnel, restart `npm run dev` after changing its hostname. The hostname is allow-listed through Next's development-only `allowedDevOrigins` setting so HMR and development assets can load through the tunnel.
-
-Set `ENABLE_HOMEPAGE_VOICE_DEMO=true` on Vercel only when the public one-question sample should be available. The sample uses Agora reseller STT/LLM/TTS through the original token/start/stop boundary and has no Supabase interview record. Keep it false when the homepage should remain visual-only.
+Set `ENABLE_HOMEPAGE_VOICE_DEMO=true` on Vercel only when the public one-question sample should be available. The sample uses Agora reseller STT/LLM and the shared Sarvam-or-MiniMax TTS selector through the original token/start/stop boundary; it has no Supabase interview record. Keep it false when the homepage should remain visual-only.
 
 Vercel invokes `/api/cron/retention` daily with `CRON_SECRET`; the route runs the Supabase cleanup function. Groq evaluator, speaker, planner, and assessment models are independently configurable; structured requests use bounded completion budgets and rate-limit failures retain deterministic evidence-only output. Monitor session start failures, RTC connection state, agent errors, evaluator fallbacks, CAS conflicts, interruption events, role transitions, tool latency, E2B failures, and assessment completion. Never log bearer tokens, resumes, full prompts, or raw media.
 

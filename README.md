@@ -50,6 +50,7 @@ Apply every migration in [supabase/migrations](supabase/migrations) in filename 
 
 - `NEXT_PUBLIC_AGORA_APP_ID`, `NEXT_AGORA_APP_CERTIFICATE`
 - `APP_BASE_URL`
+- `SARVAM_API_KEY` (optional, server-only; enables Sarvam `shubh` for interview and homepage-demo TTS, otherwise MiniMax remains the startup fallback)
 - `GROQ_API_KEY`, with optional `GROQ_EVALUATOR_MODEL`, `GROQ_SPEAKER_MODEL`, `GROQ_PLANNER_MODEL`, and `GROQ_ASSESSMENT_MODEL`
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
 - `NEXT_PUBLIC_DEMO_MODE=true` (optional local testing mode; disables company email authentication and must not be enabled in production)

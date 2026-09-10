@@ -8,11 +8,11 @@ import {
   CustomLLM,
   DeepgramSTT,
   ExpiresIn,
-  MiniMaxTTS,
 } from 'agora-agents';
 import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import type { PanelRole } from '@/types/interview';
 import { DEMO_OPENING_QUESTION } from '@/lib/interview-demo';
+import { createInterviewTts } from '@/lib/interview-tts';
 
 const TOKEN_TTL_SECONDS = 3_600;
 
@@ -150,10 +150,7 @@ export async function startInterviewAgent({
       model: 'roundtable-controller',
       systemMessages: [{ role: 'system', content: instructions }],
     }))
-    .withTts(new MiniMaxTTS({
-      model: 'speech_2_6_turbo',
-      voiceId: 'English_captivating_female1',
-    }));
+    .withTts(createInterviewTts());
 
   const session = agent.createSession({
     channel,

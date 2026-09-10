@@ -5,12 +5,12 @@ import {
   Area,
   DeepgramSTT,
   ExpiresIn,
-  MiniMaxTTS,
   OpenAI,
 } from 'agora-agents';
 import { ClientStartRequest, AgentResponse } from '@/types/conversation';
 import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import { legacyDemoEnabled } from '@/lib/legacy-demo';
+import { createInterviewTts } from '@/lib/interview-tts';
 
 export const maxDuration = 60;
 
@@ -178,10 +178,7 @@ export async function POST(request: NextRequest) {
         // }),
       )
       .withTts(
-        new MiniMaxTTS({
-          model: 'speech_2_6_turbo',
-          voiceId: 'English_captivating_female1',
-        }),
+        createInterviewTts(),
         // BYOK — ElevenLabs (set NEXT_ELEVENLABS_API_KEY; optional NEXT_ELEVENLABS_VOICE_ID)
         // new (await import('agora-agents')).ElevenLabsTTS({
         //   key: requireEnv('NEXT_ELEVENLABS_API_KEY'),
