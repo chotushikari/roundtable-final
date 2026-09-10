@@ -37,3 +37,23 @@ test('interview schema freezes a valid optional Linear issue identifier', () => 
   assert.equal(InterviewCreateSchema.parse({ ...base, linearIssueIdentifier: '' }).linearIssueIdentifier, undefined);
   assert.throws(() => InterviewCreateSchema.parse({ ...base, linearIssueIdentifier: 'not an issue' }));
 });
+
+test('interview schema supports a selected adaptive panel but keeps the finale showcase complete', () => {
+  const base = {
+    title: 'Backend interview',
+    roleTitle: 'Backend Engineer',
+    jdText: 'Build reliable services and clearly explain the customer impact of technical trade-offs.',
+    desiredOutcomes: ['Explain reliability choices'],
+    mustAskQuestions: [],
+    mustCoverTopics: [],
+    instructions: '',
+  };
+  const adaptive = InterviewCreateSchema.parse({
+    ...base, panelRoles: ['technical', 'product'], durationMinutes: 30, demoMode: false,
+  });
+  assert.deepEqual(adaptive.panelRoles, ['technical', 'product']);
+  assert.equal(adaptive.durationMinutes, 30);
+  assert.throws(() => InterviewCreateSchema.parse({
+    ...base, panelRoles: ['technical', 'product'], durationMinutes: 10, demoMode: true,
+  }));
+});

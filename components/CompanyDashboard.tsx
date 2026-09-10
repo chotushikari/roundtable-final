@@ -11,6 +11,7 @@ import {
   Sparkles, Tag, Upload, Users, X,
 } from 'lucide-react';
 import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
+import type { PanelRole } from '@/types/interview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import styles from './CompanyDashboard.module.css';
@@ -22,7 +23,10 @@ type Job = {
   status: string; createdAt: string; jdText: string; hiringBar: Record<string, unknown>;
 };
 type Competency = { id: string; competencyKey: string; name: string; description: string; weight: number; required: boolean };
-type Interview = { id: string; title: string; roleTitle: string; status: string; createdAt: string; jobId?: string | null };
+type Interview = {
+  id: string; title: string; roleTitle: string; status: string; createdAt: string;
+  jobId?: string | null; panelRoles?: PanelRole[]; durationMinutes?: number; demoMode?: boolean;
+};
 type SessionSummary = { id: string; status: string; health: string; startedAt: string; completedAt: string | null; interviewId: string };
 type Candidate = { id: string; fullName: string | null; email: string | null };
 type JobCandidate = { id: string; candidateId: string; stage: string; createdAt: string; candidate: Candidate };
@@ -39,6 +43,13 @@ const stageColors: Record<string, string> = {
 const roleNames: Record<string, string> = {
   hiring_manager: 'Hiring Manager', technical: 'Technical', product: 'Product Manager',
   customer: 'Customer', behavioral: 'Behavioural',
+};
+const roleDescriptions: Record<PanelRole, string> = {
+  hiring_manager: 'role fit and ownership',
+  technical: 'implementation and trade-offs',
+  product: 'customer value and priorities',
+  customer: 'adoption and support reality',
+  behavioral: 'collaboration and learning',
 };
 
 function GoogleMark() {
@@ -95,6 +106,9 @@ export function CompanyDashboard() {
   const [jdText, setJdText] = useState('Entry-level internship with no professional experience required. Use Python, JavaScript, or TypeScript. Assess basic problem solving, simple functions, a small to-do app design, communication, and willingness to learn. Accept class assignments and personal projects. Keep questions beginner-friendly; do not require distributed systems or production experience.');
   const [outcomes, setOutcomes] = useState('Write a simple function and explain an edge case\nDraw a simple app with a client, server, and database\nExplain how the app helps a user\nCommunicate clearly and learn from feedback');
   const [mustAsk, setMustAsk] = useState('');
+  const [interviewMode, setInterviewMode] = useState<'showcase' | 'adaptive'>('showcase');
+  const [panelRoles, setPanelRoles] = useState<PanelRole[]>([...DEMO_ROLES]);
+  const [durationMinutes, setDurationMinutes] = useState(DEMO_DURATION_MINUTES);
 
   // ── Add candidate form ───────────────────────────────────────────────────────
   const [candidateName, setCandidateName] = useState('');
@@ -270,15 +284,22 @@ export function CompanyDashboard() {
 
   async function createBlueprint() {
     if (!selectedJobId) return;
-    setPendingAction('createBp'); setMessage('Generating five-perspective interview plan…');
+    const isShowcase = interviewMode === 'showcase';
+    const selectedRoles = isShowcase ? DEMO_ROLES : panelRoles;
+    const selectedDuration = isShowcase ? DEMO_DURATION_MINUTES : durationMinutes;
+    if (selectedRoles.length < 2) {
+      setMessage('Choose at least two panel perspectives for an adaptive interview.');
+      return;
+    }
+    setPendingAction('createBp'); setMessage(`Generating ${isShowcase ? 'five-perspective showcase' : 'adaptive'} interview plan…`);
     try {
       const res = await fetch('/api/interviews', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
-          title: `${roleTitle.trim()} Interview`.slice(0, 120), roleTitle, jdText,
+          title: `${roleTitle.trim()} ${isShowcase ? 'Showcase' : 'Adaptive'} Interview`.slice(0, 120), roleTitle, jdText,
           desiredOutcomes: outcomes.split('\n').map((s) => s.trim()).filter(Boolean),
           mustAskQuestions: mustAsk.split('\n').map((s) => s.trim()).filter(Boolean),
-          panelRoles: DEMO_ROLES, durationMinutes: DEMO_DURATION_MINUTES, demoMode: true,
+          panelRoles: selectedRoles, durationMinutes: selectedDuration, demoMode: isShowcase,
           jobId: selectedJobId,
         }),
       });
@@ -294,6 +315,24 @@ export function CompanyDashboard() {
       setActiveTab('candidates');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not create blueprint'); }
     finally { setPendingAction(null); }
+  }
+
+  function chooseInterviewMode(mode: 'showcase' | 'adaptive') {
+    setInterviewMode(mode);
+    if (mode === 'showcase') {
+      setPanelRoles([...DEMO_ROLES]);
+      setDurationMinutes(DEMO_DURATION_MINUTES);
+    } else if (durationMinutes === DEMO_DURATION_MINUTES) {
+      setDurationMinutes(30);
+    }
+  }
+
+  function togglePanelRole(role: PanelRole) {
+    if (interviewMode === 'showcase') return;
+    setPanelRoles((current) => {
+      if (current.includes(role)) return current.length > 2 ? current.filter((item) => item !== role) : current;
+      return [...current, role];
+    });
   }
 
   async function addCandidate() {
@@ -648,7 +687,7 @@ export function CompanyDashboard() {
                   <div className={styles.tabPanel}>
                     <div className={styles.tabIntro}>
                       <strong>Interview blueprint</strong>
-                      <span>Configure the five-role, ten-minute showcase panel for this job.</span>
+                      <span>Choose a finale-ready showcase or a role-specific adaptive interview. The server owns every handoff and assessment decision.</span>
                     </div>
                     {interviews.length > 0 ? (
                       <div className={styles.blueprintList}>
@@ -663,10 +702,11 @@ export function CompanyDashboard() {
                               <span className={`${styles.status} ${item.status === 'ready' ? styles.status_ready : ''}`}>{item.status}</span>
                             </div>
                             <div className={styles.roleChips}>
-                              {DEMO_ROLES.map((r, i) => (
+                              {(item.panelRoles ?? DEMO_ROLES).map((r, i) => (
                                 <span key={r}><b>{i + 1}</b>{roleNames[r] ?? r}</span>
                               ))}
                             </div>
+                            <div className={styles.bpMeta}><Clock3 size={11}/> {item.durationMinutes ?? DEMO_DURATION_MINUTES} min · {item.demoMode ? 'finale showcase' : 'adaptive interview'}</div>
                           </Card>
                         ))}
                         <p className={styles.bpNote}>To create a new blueprint for this job, fill the form below.</p>
@@ -676,13 +716,30 @@ export function CompanyDashboard() {
                       <CardContent className={styles.form}>
                         <label className={styles.field}><span>Role title</span><input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Frontend Engineer"/></label>
                         <label className={styles.field}><span>Role context and requirements</span><textarea value={jdText} onChange={(e) => setJdText(e.target.value)} rows={5}/></label>
-                        <label className={styles.field}><span>Desired outcomes <small>one per line</small></span><textarea value={outcomes} onChange={(e) => setOutcomes(e.target.value)} rows={4}/></label>
+                        <label className={styles.field}><span>Focus areas and outcomes <small>one per line</small></span><textarea value={outcomes} onChange={(e) => setOutcomes(e.target.value)} rows={4}/></label>
                         <label className={styles.field}><span>Must-ask questions <small>optional, one per line</small></span><textarea value={mustAsk} onChange={(e) => setMustAsk(e.target.value)} rows={3} placeholder="Add questions the panel must cover"/></label>
-                        <div className={styles.panelBlock}>
-                          <span>Server-controlled panel sequence</span>
-                          <div className={styles.roleChips}>{DEMO_ROLES.map((r, i) => <span key={r}><b>{i + 1}</b>{roleNames[r] ?? r}</span>)}</div>
+                        <div className={styles.modePicker} aria-label="Interview mode">
+                          <button type="button" className={`${styles.modeCard} ${interviewMode === 'showcase' ? styles.modeCardActive : ''}`} onClick={() => chooseInterviewMode('showcase')}>
+                            <strong>Finale showcase</strong><span>Five perspectives · 10 min · one answer per role</span>
+                          </button>
+                          <button type="button" className={`${styles.modeCard} ${interviewMode === 'adaptive' ? styles.modeCardActive : ''}`} onClick={() => chooseInterviewMode('adaptive')}>
+                            <strong>Adaptive interview</strong><span>Choose 2–5 perspectives and a 5–90 min budget</span>
+                          </button>
                         </div>
-                        <div className={styles.bpMeta}><Clock3 size={11}/> {DEMO_DURATION_MINUTES} min · fixed showcase format</div>
+                        <div className={styles.panelBlock}>
+                          <span>Panel perspectives <small>{interviewMode === 'showcase' ? 'Showcase includes every role.' : 'Select at least two. The panel adapts by evidence gaps, not a timer.'}</small></span>
+                          <div className={styles.roleSelector}>{DEMO_ROLES.map((role) => {
+                            const selected = panelRoles.includes(role);
+                            return <button key={role} type="button" disabled={interviewMode === 'showcase'} onClick={() => togglePanelRole(role)} className={`${styles.roleOption} ${selected ? styles.roleOptionActive : ''}`} aria-pressed={selected}>
+                              <b>{selected ? <Check size={11}/> : ''}</b><span><strong>{roleNames[role]}</strong><small>{roleDescriptions[role]}</small></span>
+                            </button>;
+                          })}</div>
+                        </div>
+                        <label className={styles.durationControl}>
+                          <span><Clock3 size={12}/> Time budget <b>{interviewMode === 'showcase' ? DEMO_DURATION_MINUTES : durationMinutes} min</b></span>
+                          <input type="range" min="5" max="90" step="5" value={interviewMode === 'showcase' ? DEMO_DURATION_MINUTES : durationMinutes} disabled={interviewMode === 'showcase'} onChange={(e) => setDurationMinutes(Number(e.target.value))}/>
+                          <small>{interviewMode === 'showcase' ? 'The finale demo is deliberately bounded.' : 'The interview may finish earlier only after enough evidence is collected.'}</small>
+                        </label>
                         <Button className={styles.createButton} onClick={createBlueprint}
                           disabled={pendingAction === 'createBp' || !roleTitle.trim() || !jdText.trim()}>
                           {pendingAction === 'createBp' ? <><Activity className={styles.spin} size={15}/> Generating plan…</> : <><Plus size={15}/> {interviews.length > 0 ? 'Create new blueprint' : 'Generate blueprint'}</>}
