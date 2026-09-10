@@ -29,6 +29,8 @@ The company dashboard has two functional blueprint modes. `demoMode: true` creat
 
 The recruiter workflow makes the required sequence visible: set at least three competencies, build a blueprint, add candidates, then review completed evidence. Its quick-action buttons navigate to the corresponding live workflow; role templates, seniority, and selected focus chips populate the server-backed blueprint inputs. They do not create recruiter-visible live scores or automatic decisions.
 
+The Candidate review tab matches a completed interview session to the private `job_candidate` bridge created with its invitation. It presents interview-report availability alongside the recruiter’s latest human decision and opens the completed evidence report. It intentionally does not rank candidates, infer a recommendation, or create a hiring decision.
+
 ## Setup
 
 ### Interview workspaces

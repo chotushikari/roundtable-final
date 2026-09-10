@@ -27,7 +27,10 @@ type Interview = {
   id: string; title: string; roleTitle: string; status: string; createdAt: string;
   jobId?: string | null; panelRoles?: PanelRole[]; durationMinutes?: number; demoMode?: boolean;
 };
-type SessionSummary = { id: string; status: string; health: string; startedAt: string; completedAt: string | null; interviewId: string };
+type SessionSummary = {
+  id: string; status: string; health: string; startedAt: string; completedAt: string | null; interviewId: string;
+  jobCandidateId?: string | null; candidateName?: string | null;
+};
 type Candidate = { id: string; fullName: string | null; email: string | null };
 type JobCandidate = { id: string; candidateId: string; stage: string; createdAt: string; candidate: Candidate };
 type HumanDecision = { id: string; decision: 'advance' | 'hold' | 'decline' | 'needs_review'; rationale: string; decidedAt: string };
@@ -107,7 +110,7 @@ export function CompanyDashboard() {
   const [decisionRationales, setDecisionRationales] = useState<Record<string, string>>({});
 
   // ── Active tab inside job detail ─────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'competencies' | 'blueprint' | 'candidates' | 'pipeline'>('candidates');
+  const [activeTab, setActiveTab] = useState<'competencies' | 'blueprint' | 'candidates' | 'pipeline' | 'compare'>('candidates');
 
   // ── Create job form ──────────────────────────────────────────────────────────
   const [showCreateJob, setShowCreateJob] = useState(false);
@@ -518,6 +521,10 @@ export function CompanyDashboard() {
       : jobCandidates.length === 0
         ? { tab: 'candidates' as const, label: 'Add candidate', detail: 'Create a private candidate record, then generate a single-use link.' }
         : { tab: 'pipeline' as const, label: 'Review pipeline', detail: 'Monitor completed interviews and open evidence reports for human review.' };
+  const completedSessionByCandidate = new Map(
+    sessions.filter((session) => session.status === 'completed' && session.jobCandidateId)
+      .map((session) => [session.jobCandidateId!, session]),
+  );
 
   // ─── Main dashboard ──────────────────────────────────────────────────────────
   return (
@@ -680,7 +687,7 @@ export function CompanyDashboard() {
 
                 {/* Tabs */}
                 <nav className={styles.tabs}>
-                  {(['competencies', 'blueprint', 'candidates', 'pipeline'] as const).map((tab, i) => (
+                  {(['competencies', 'blueprint', 'candidates', 'pipeline', 'compare'] as const).map((tab, i) => (
                     <button
                       key={tab}
                       className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
@@ -693,6 +700,9 @@ export function CompanyDashboard() {
                       )}
                       {tab === 'pipeline' && sessions.length > 0 && (
                         <span className={styles.tabBadge}>{sessions.length}</span>
+                      )}
+                      {tab === 'compare' && completedSessionByCandidate.size > 0 && (
+                        <span className={styles.tabBadge}>{completedSessionByCandidate.size}</span>
                       )}
                     </button>
                   ))}
@@ -933,6 +943,32 @@ export function CompanyDashboard() {
                 )}
 
                 {/* ── Tab: Pipeline ─────────────────────────────────── */}
+                {activeTab === 'compare' && (
+                  <div className={styles.tabPanel}>
+                    <div className={styles.compareIntro}>
+                      <div><strong>Candidate review</strong><span>Compare interview completion and your human decisions. Open evidence—not a generated ranking.</span></div>
+                      <span className={styles.compareGuard}><ShieldCheck size={13}/> Human review required</span>
+                    </div>
+                    {jobCandidates.length === 0 ? (
+                      <div className={styles.listEmpty}><span>Add candidates before starting a comparison.</span></div>
+                    ) : (
+                      <div className={styles.comparisonTable}>
+                        <div className={styles.comparisonHead}><span>Candidate</span><span>Interview evidence</span><span>Human decision</span><span/></div>
+                        {jobCandidates.map((jobCandidate) => {
+                          const completedSession = completedSessionByCandidate.get(jobCandidate.id);
+                          const latestDecision = decisionHistory[jobCandidate.id]?.[0];
+                          return <div key={jobCandidate.id} className={styles.comparisonRow}>
+                            <div className={styles.comparisonCandidate}><b>{(jobCandidate.candidate.fullName ?? jobCandidate.candidate.email ?? 'Candidate').slice(0, 1).toUpperCase()}</b><span><strong>{jobCandidate.candidate.fullName ?? 'Unnamed candidate'}</strong><small>{jobCandidate.stage.replace('_', ' ')}</small></span></div>
+                            <div className={styles.evidenceState}><i className={completedSession ? styles.evidenceReady : styles.evidencePending}/><span><strong>{completedSession ? 'Report ready' : 'Not completed'}</strong><small>{completedSession ? 'Transcript and artifact evidence available' : 'No completed interview evidence yet'}</small></span></div>
+                            <div className={styles.compareDecision}>{latestDecision ? <><strong>{latestDecision.decision.replace('_', ' ')}</strong><small>{new Date(latestDecision.decidedAt).toLocaleDateString()}</small></> : <><strong>Not recorded</strong><small>Decision remains with recruiter</small></>}</div>
+                            {completedSession ? <button className={styles.openEvidenceButton} onClick={() => router.push(`/company/analysis/${completedSession.id}`)}><FileText size={13}/> Open evidence</button> : <button className={styles.openEvidenceButton} onClick={() => setActiveTab('candidates')}><UserPlus size={13}/> Open candidate</button>}
+                          </div>;
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {activeTab === 'pipeline' && (
                   <div className={styles.tabPanel}>
                     <div className={styles.tabIntro}>
