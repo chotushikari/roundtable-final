@@ -17,6 +17,7 @@
 - `app/api/ai/sarvam/tts`: authenticated internal Sarvam Bulbul v3 `shubh` to 24 kHz PCM bridge for Agora GenericTTS.
 - `app/api/mcp/[grant]`: session-scoped Streamable HTTP MCP endpoint.
 - `lib/interview-controller.ts`: evaluator validation and deterministic next-speaker rules.
+- `app/api/interviews/[id]/plan`, `lib/interview-planner.ts`: server-loaded Job hiring-bar execution, immutable blueprint rubric generation, and adaptive interview scenarios.
 - `lib/interview-demo.ts`: five-role showcase order, opening/closing text, and answered-role progress.
 - `lib/interview-store.ts`: Supabase/in-memory persistence adapter.
 - `lib/agora-server.ts`: combined tokens and managed-agent start/stop.
