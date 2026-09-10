@@ -36,6 +36,11 @@ function mem(): MemoryJobDatabase {
   return globalThis.__roundtableJobDatabase;
 }
 
+/** Test-only reset for the development/test in-memory adapter. */
+export function resetJobStoreForTests(): void {
+  globalThis.__roundtableJobDatabase = undefined;
+}
+
 function now(): string {
   return new Date().toISOString();
 }
@@ -315,7 +320,7 @@ export const jobStore = {
     const admin = getSupabaseAdmin();
     if (!admin) {
       const existing = [...mem().jobCandidates.values()].find(
-        (jc) => jc.jobId === jobId && jc.candidateId === candidateId,
+        (jc) => jc.organizationId === organizationId && jc.jobId === jobId && jc.candidateId === candidateId,
       );
       if (existing) return existing;
       const record: JobCandidateRecord = {
@@ -336,7 +341,7 @@ export const jobStore = {
       { id: randomUUID(), organization_id: organizationId, job_id: jobId, candidate_id: candidateId, stage: 'draft' },
       { onConflict: 'job_id,candidate_id', ignoreDuplicates: true },
     ).select('*').single();
-    if (error) {
+    if (error || !data) {
       // ignoreDuplicates returns null data on conflict — read existing row
       const { data: existing, error: readErr } = await admin.from('job_candidates')
         .select('*').eq('job_id', jobId).eq('candidate_id', candidateId).single();
@@ -367,20 +372,23 @@ export const jobStore = {
 
   async updateJobCandidateStage(
     id: string,
+    jobId: string,
     organizationId: string,
     stage: JobCandidateRecord['stage'],
   ): Promise<JobCandidateRecord> {
     const admin = getSupabaseAdmin();
     if (!admin) {
       const existing = mem().jobCandidates.get(id);
-      if (!existing) throw new Error('Job candidate not found');
+      if (!existing || existing.jobId !== jobId || existing.organizationId !== organizationId) {
+        throw new Error('Job candidate not found');
+      }
       const next = { ...existing, stage, updatedAt: now() };
       mem().jobCandidates.set(id, next);
       return next;
     }
     const { data, error } = await admin.from('job_candidates')
       .update({ stage, updated_at: now() })
-      .eq('id', id).eq('organization_id', organizationId)
+      .eq('id', id).eq('job_id', jobId).eq('organization_id', organizationId)
       .select('*').single();
     throwDb(error, 'update job candidate stage');
     return jobCandidateFromRow(data as Record<string, unknown>);

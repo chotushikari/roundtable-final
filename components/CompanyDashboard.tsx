@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient, type Session } from '@supabase/supabase-js';
 import {
   Activity, ArrowLeft, ArrowRight, Briefcase, BriefcaseBusiness, Check,
@@ -119,7 +119,7 @@ export function CompanyDashboard() {
   }, [supabase]);
 
   // --- Load jobs
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     try {
       const headers: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
       const res = await fetch('/api/jobs', { headers });
@@ -128,14 +128,15 @@ export function CompanyDashboard() {
       setJobs(data.jobs ?? []);
       setOrganizationId(data.organizationId);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load jobs'); }
-  };
+  }, [accessToken]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (authReady && (session || !supabase)) void loadJobs(); }, [authReady, !!session, !!supabase, accessToken]);
+  useEffect(() => {
+    if (authReady && (session || !supabase)) void loadJobs();
+  }, [authReady, session, supabase, loadJobs]);
 
 
   // ─── Load job detail ────────────────────────────────────────────────────────
-  const loadJobDetail = async (jobId: string | null) => {
+  const loadJobDetail = useCallback(async (jobId: string | null) => {
     if (!jobId) return;
     const headers: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
     try {
@@ -161,7 +162,7 @@ export function CompanyDashboard() {
         setSessions(lists.flat());
       }
     } catch { /* non-fatal */ }
-  };
+  }, [accessToken]);
 
   // ─── Realtime for org channel ───────────────────────────────────────────────
   useEffect(() => {
@@ -170,10 +171,9 @@ export function CompanyDashboard() {
       .on('broadcast', { event: '*' }, () => void loadJobDetail(selectedJobId))
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, session, organizationId, selectedJobId]);
+  }, [supabase, session, organizationId, selectedJobId, loadJobDetail]);
 
-  useEffect(() => { void loadJobDetail(selectedJobId); }, [selectedJobId, accessToken]);
+  useEffect(() => { void loadJobDetail(selectedJobId); }, [selectedJobId, loadJobDetail]);
 
   // ─── Live session polling ───────────────────────────────────────────────────
   useEffect(() => {
