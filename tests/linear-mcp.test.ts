@@ -56,4 +56,10 @@ test('interview schema supports a selected adaptive panel but keeps the finale s
   assert.throws(() => InterviewCreateSchema.parse({
     ...base, panelRoles: ['technical', 'product'], durationMinutes: 10, demoMode: true,
   }));
+  assert.throws(() => InterviewCreateSchema.parse({
+    ...base, panelRoles: ['hiring_manager', 'technical', 'product', 'customer', 'behavioral'], durationMinutes: 30, demoMode: true,
+  }));
+  assert.equal(InterviewCreateSchema.parse({
+    ...base, panelRoles: ['hiring_manager', 'technical', 'product', 'customer', 'behavioral'], durationMinutes: 10, demoMode: true,
+  }).durationMinutes, 10);
 });

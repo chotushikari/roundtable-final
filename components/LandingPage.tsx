@@ -187,9 +187,12 @@ export default function LandingPage({
         });
         const responseData = await sessionResponse.json();
         if (!sessionResponse.ok) throw new Error(responseData.error ?? 'Failed to start interview');
+        // Use the fixed candidate preparation period to hide agent cold start.
+        // The interview duration begins when the managed agent starts, so this
+        // does not consume any of the ten-minute showcase.
         const agentStartPromise = responseData.agentId
           ? Promise.resolve({ ok: true, data: { agentId: responseData.agentId } })
-          : fetch(`/api/sessions/${responseData.sessionId}/start`, { method: 'POST' })
+          : new Promise((resolve) => window.setTimeout(resolve, 20_000)).then(() => fetch(`/api/sessions/${responseData.sessionId}/start`, { method: 'POST' }))
             .then(async (response) => ({ ok: response.ok, data: await response.json() }));
         const { default: AgoraRTM } = await import('agora-rtm');
         const rtm: RTMClient = new AgoraRTM.RTM(

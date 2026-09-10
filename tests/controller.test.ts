@@ -300,7 +300,7 @@ test('two-minute demo rotates through every configured panel role', () => {
   assert.equal(afterCustomer.reasonCode, 'panel_coverage');
 });
 
-test('showcase hands technical evidence with a customer-impact gap directly to Product', () => {
+test('showcase preserves the judge-facing role order despite an evidence recommendation', () => {
   const demoInterview = {
     ...interview,
     demoMode: true,
@@ -312,13 +312,13 @@ test('showcase hands technical evidence with a customer-impact gap directly to P
     interview: demoInterview,
     plan,
     priorAnalyses: [priorRole('hiring_manager')],
-    analysis: analysis({ roleFindings: [
+    analysis: analysis({ recommendedRole: 'customer', roleFindings: [
       { role: 'technical', observations: [], strengths: ['Correct implementation'], gaps: [] },
       { role: 'product', observations: [], strengths: [], gaps: ['No customer impact'] },
       { role: 'hiring_manager', observations: [], strengths: [], gaps: [] },
     ] }),
   });
-  assert.equal(result.activeSpeakerRole, 'product');
+  assert.equal(result.activeSpeakerRole, 'technical');
   assert.equal(result.reasonCode, 'panel_coverage');
   assert.equal(result.roleHandoff, true);
 });
@@ -335,7 +335,6 @@ test('workspace handoffs retain prior roles so the last panel turn wraps instead
     interview: demoInterview,
     plan,
     priorAnalyses: [priorRole('technical'), priorRole('behavioral')],
-    completedWorkspaceRoles: ['technical', 'product'],
     analysis: analysis(),
   });
   assert.equal(result.reasonCode, 'wrap_up');

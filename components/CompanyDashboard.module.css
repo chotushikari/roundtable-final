@@ -10,6 +10,7 @@
 .eyebrow,.sectionLabel,.authEyebrow{color:#3ecf8e;font:600 11px var(--font-ibm-plex-mono),monospace;letter-spacing:.13em}
 .hero h1{margin:10px 0 9px;font-size:clamp(31px,3.2vw,46px);line-height:1;letter-spacing:-.055em;font-weight:600}.hero p{max-width:620px;color:#8f8f8f;font-size:13px;line-height:1.65}
 .heroActions{display:flex;align-items:center;gap:9px}.heroPrimary,.detailPrimary{color:#07150f!important;background:#3ecf8e!important;font-weight:700!important}.heroPrimary:hover,.detailPrimary:hover{background:#56e6a5!important}
+.workspaceBar{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:18px;padding:4px 0}.workspaceBar h1{margin:7px 0 4px;color:#f2f2f2;font-size:28px;letter-spacing:-.045em}.workspaceBar p{margin:0;color:#777;font-size:12px}
 
 /* ─── Metrics ──────────────────────────────────────────────────────────────── */
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
@@ -18,10 +19,10 @@
 .notice{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px 14px;border:1px solid #3ecf8e40;border-radius:8px;color:#b7dec9;background:#3ecf8e12;font-size:13px}.notice svg{color:#3ecf8e}
 
 /* ─── Workbench (two-panel) ────────────────────────────────────────────────── */
-.workbench{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start}
+.workbench{display:grid;grid-template-columns:270px 1fr;gap:14px;align-items:start}
 
 /* ─── Sidebar ──────────────────────────────────────────────────────────────── */
-.sidebar{border:1px solid #252525;border-radius:12px;background:#141414;overflow:hidden;position:sticky;top:80px}
+.sidebar{border:1px solid #252525;border-radius:10px;background:#141414;overflow:hidden;position:sticky;top:80px}
 .sidebarHead{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid #252525}
 .newJobBtn{height:28px!important;padding:0 10px!important;font-size:11px!important}
 .sidebarEmpty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:36px 20px;text-align:center;color:#666}
@@ -49,14 +50,14 @@
 .select:focus{border-color:#3ecf8ebf;box-shadow:0 0 0 3px #3ecf8e17}
 
 /* ─── Job Detail ───────────────────────────────────────────────────────────── */
-.jobDetail{border:1px solid #252525;border-radius:12px;background:#141414;overflow:hidden}
+.jobDetail{border:1px solid #252525;border-radius:10px;background:#141414;overflow:hidden}
 .detailEmpty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:480px;gap:10px;text-align:center;color:#666}
 .detailEmpty svg{color:#3ecf8e;margin-bottom:6px}.detailEmpty strong{color:#aaa;font-size:14px}.detailEmpty span{font-size:12px;line-height:1.5;max-width:340px}
 
 /* ─── Job header inside detail ─────────────────────────────────────────────── */
-.jobHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 24px 20px;border-bottom:1px solid #252525}
+.jobHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px 18px;border-bottom:1px solid #252525}
 .jobHeader h2{font-size:20px;letter-spacing:-.02em;font-weight:600;color:#f0f0f0;margin-bottom:8px}
-.readinessCard{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:24px;margin:16px 20px 0;padding:15px 16px;border:1px solid #294334;border-radius:10px;background:linear-gradient(105deg,#102318,#111513 68%)}.readinessLead{display:grid;gap:4px}.readinessLead strong{color:#dfeee5;font-size:14px;letter-spacing:-.015em}.readinessLead p{margin:0;color:#83a591;font-size:11px;line-height:1.45}.readinessFacts{display:flex;gap:15px}.readinessFacts span{display:grid;gap:2px;color:#779080;font-size:9px;text-transform:uppercase;letter-spacing:.05em}.readinessFacts b{color:#d7e7dd;font:700 15px var(--font-ibm-plex-mono),monospace;letter-spacing:0}.readinessActions{display:flex;gap:7px}.readinessActions button{height:31px!important;font-size:10px!important}
+.jobHeaderActions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}.jobHeaderActions button{height:32px!important;font-size:10px!important}
 
 /* ─── Tabs ─────────────────────────────────────────────────────────────────── */
 .tabs{display:flex;border-bottom:1px solid #252525;background:#0f0f0f}
@@ -169,5 +170,4 @@
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */
 @media(max-width:1100px){.workbench{grid-template-columns:260px 1fr}}
 @media(max-width:860px){.metrics{grid-template-columns:repeat(2,1fr)}.workbench{grid-template-columns:1fr}.sidebar{position:static}}
-@media(max-width:860px){.readinessCard{grid-template-columns:1fr auto}.readinessActions{grid-column:1/-1}}
-@media(max-width:640px){.shell{width:calc(100% - 28px);padding-top:40px}.topbar{padding:0 16px}.userChip{display:none}.hero{display:block}.hero h1{font-size:36px}.heroActions{margin-top:14px}.metrics{gap:8px}.metricCard{min-height:76px;padding:14px}.compRow,.formSplit{grid-template-columns:1fr}.tabs{flex-wrap:wrap}.tab{flex:1 0 40%}.linkRow{grid-template-columns:1fr}.modePicker,.roleSelector{grid-template-columns:1fr}.readinessCard{grid-template-columns:1fr;margin:12px 12px 0;gap:13px}.readinessFacts{gap:12px}.readinessActions{grid-column:auto;flex-wrap:wrap}.builderHeader{display:grid}.builderHeader>small{text-align:left}.compareIntro{display:grid}.comparisonHead{display:none}.comparisonRow{grid-template-columns:1fr auto;gap:12px}.evidenceState,.compareDecision{grid-column:1}.openEvidenceButton{grid-column:2;grid-row:1/4}.compareGuard{width:max-content}}
+@media(max-width:640px){.shell{width:calc(100% - 28px);padding-top:28px}.topbar{padding:0 16px}.userChip{display:none}.workspaceBar{align-items:flex-start;flex-direction:column}.heroActions{width:100%}.heroActions button{flex:1}.jobHeader{padding:16px}.jobHeaderActions{justify-content:flex-start}.metrics{gap:8px}.metricCard{min-height:76px;padding:14px}.compRow,.formSplit{grid-template-columns:1fr}.tabs{flex-wrap:wrap}.tab{flex:1 0 40%}.linkRow{grid-template-columns:1fr}.modePicker,.roleSelector{grid-template-columns:1fr}.builderHeader{display:grid}.builderHeader>small{text-align:left}.compareIntro{display:grid}.comparisonHead{display:none}.comparisonRow{grid-template-columns:1fr auto;gap:12px}.evidenceState,.compareDecision{grid-column:1}.openEvidenceButton{grid-column:2;grid-row:1/4}.compareGuard{width:max-content}}

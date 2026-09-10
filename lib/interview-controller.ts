@@ -293,16 +293,12 @@ export function chooseNextDecision({
   plan,
   analysis,
   priorAnalyses,
-  completedWorkspaceRoles = [],
 }: {
   session: InterviewSessionRecord;
   interview: InterviewDefinitionRecord;
   plan: InterviewPlan;
   analysis: PanelTurnAnalysis;
   priorAnalyses: TurnAnalysisRecord[];
-  // Workspace completion is a navigation event, not a candidate answer. It
-  // still marks that panel member's task complete for deterministic rotation.
-  completedWorkspaceRoles?: PanelRole[];
 }): ControllerDecision {
   const remainingQuestions = interview.mustAskQuestions.filter((question) => !session.askedMustAsk.includes(question));
   const remainingTopics = interview.mustCoverTopics.filter(
@@ -320,26 +316,11 @@ export function chooseNextDecision({
 
   if (interview.demoMode) {
     const ordered = demoRoles(interview.panelRoles);
-    // This call is processing a substantive answer to the pending role.
-    const answered = new Set([
-      ordered[0],
-      session.activeRole,
-      ...(session.previousRole ? [session.previousRole] : []),
-      ...priorAnalyses.map((item) => item.decision.activeSpeakerRole),
-      ...completedWorkspaceRoles,
-    ]);
-    const unaskedDemoRoles = ordered.filter((item) => !answered.has(item));
-    // Showcase mode still guarantees one substantive answer for every panel
-    // perspective, but it deliberately does not force their speaking order.
-    // A cross-functional evidence gap can hand the next turn to the role best
-    // equipped to test it, which makes shared context visible in a short demo.
-    const technicalPositive = analysis.roleFindings.find((item) => item.role === 'technical')?.strengths.length;
-    const productGap = analysis.roleFindings.find((item) => item.role === 'product')?.gaps.length;
-    const next = technicalPositive && productGap && unaskedDemoRoles.includes('product')
-      ? 'product'
-      : unaskedDemoRoles.includes(analysis.recommendedRole)
-        ? analysis.recommendedRole
-        : unaskedDemoRoles[0];
+    // Finale mode is deliberately deterministic: judges can follow the same
+    // five-perspective story every time. Evidence still informs each role's
+    // question, but never changes the speaker order.
+    const currentIndex = ordered.indexOf(session.activeRole);
+    const next = currentIndex >= 0 ? ordered[currentIndex + 1] : ordered[0];
     role = next ?? session.activeRole;
     reasonCode = next ? 'panel_coverage' : 'wrap_up';
     objective = next
@@ -550,11 +531,6 @@ export async function processCandidateTurn({
 
   const turns = await interviewStore.listTurns(session.id);
   const priorAnalyses = await interviewStore.listAnalyses(session.id);
-  const sessionEvents = await interviewStore.listEvents(session.id);
-  const completedWorkspaceRoles = sessionEvents
-    .filter((event) => event.type === 'demo.workspace_completed' || event.type === 'demo.workspace_skipped')
-    .map((event) => event.payload.role)
-    .filter((role): role is PanelRole => typeof role === 'string' && interview.panelRoles.includes(role as PanelRole));
   const [codeAtAnswer, canvasAtAnswer] = await Promise.all([
     interviewStore.getArtifact(session.id, 'code'),
     interviewStore.getArtifact(session.id, 'canvas'),
@@ -594,7 +570,6 @@ export async function processCandidateTurn({
     plan: version.plan,
     analysis: analysisForDecision,
     priorAnalyses,
-    completedWorkspaceRoles,
   });
   if (priorAnalyses.length === 0 && decision.reasonCode === 'balanced_rotation') {
     const invitation = await interviewStore.getInvitation(session.invitationId);

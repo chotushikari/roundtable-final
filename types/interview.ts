@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
 
 export const PANEL_ROLES = [
   'technical',
@@ -73,8 +74,11 @@ export const InterviewCreateSchema = z.object({
   // Null/undefined keeps existing definitions fully backward-compatible.
   jobId: z.string().uuid().optional(),
 }).superRefine((value, context) => {
-  if (value.demoMode && new Set(value.panelRoles).size !== PANEL_ROLES.length) {
-    context.addIssue({ code: 'custom', path: ['panelRoles'], message: 'The showcase requires all five panel roles.' });
+  if (value.demoMode && (value.panelRoles.length !== DEMO_ROLES.length || value.panelRoles.some((role, index) => role !== DEMO_ROLES[index]))) {
+    context.addIssue({ code: 'custom', path: ['panelRoles'], message: 'The showcase order is Hiring Manager, Technical, Product, Customer, then Behavioural.' });
+  }
+  if (value.demoMode && value.durationMinutes !== DEMO_DURATION_MINUTES) {
+    context.addIssue({ code: 'custom', path: ['durationMinutes'], message: 'The finale showcase is fixed at ten minutes.' });
   }
 });
 export type InterviewCreateInput = z.infer<typeof InterviewCreateSchema>;

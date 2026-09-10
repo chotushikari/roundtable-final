@@ -225,7 +225,9 @@ export default function ConversationComponent({
   // synchronously before the timeout, so only the real second mount's timer fires.
   // Do NOT pass `isEnabled` — that ties track lifetime to mute state and breaks the Web Audio
   // graph inside MicButtonWithVisualizer. Mute uses track.setEnabled() only.
-  const { localMicrophoneTrack } = useLocalMicrophoneTrack(isReady);
+  // The preparation period is intentional for the finale. Do not request or
+  // publish candidate audio until its full twenty seconds have elapsed.
+  const { localMicrophoneTrack } = useLocalMicrophoneTrack(isReady && preparationSeconds >= 20);
 
   // ENABLE_AUDIO_PTS is a module-level SDK parameter (not on the client instance).
   // It must be set before publishing audio for transcript timing to be accurate.
@@ -659,7 +661,7 @@ export default function ConversationComponent({
   }, [agentState, agentUID, compactDemo, companionDemo, handleEndConversation, transcript]);
 
   const roomReady = joinSuccess && isAgentConnected;
-  const preparationComplete = roomReady && preparationSeconds >= 4;
+  const preparationComplete = roomReady && preparationSeconds >= 20;
 
   if (!compactDemo && !companionDemo && !preparationComplete) {
     return (

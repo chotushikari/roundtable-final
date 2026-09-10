@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient, type Session } from '@supabase/supabase-js';
 import {
   Activity, ArrowLeft, ArrowRight, Briefcase, BriefcaseBusiness, Check,
-  CheckCircle2, ChevronRight, Clipboard, Clock3, FileCheck2, FileText,
-  Link2, LoaderCircle, LogOut, MapPin, Plus, Radio, RefreshCw, ShieldCheck,
-  Sparkles, Tag, Upload, Users, UserPlus, WandSparkles, X,
+  CheckCircle2, ChevronRight, Clipboard, Clock3, FileText,
+  Link2, LoaderCircle, LogOut, MapPin, Plus, RefreshCw, ShieldCheck,
+  Sparkles, Tag, Upload, UserPlus, WandSparkles, X,
 } from 'lucide-react';
 import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
 import type { PanelRole } from '@/types/interview';
@@ -168,7 +168,9 @@ export function CompanyDashboard() {
       const res = await fetch('/api/jobs', { headers });
       const data = await res.json() as { jobs: Job[]; organizationId: string };
       if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Could not load jobs');
-      setJobs(data.jobs ?? []);
+      const nextJobs = data.jobs ?? [];
+      setJobs(nextJobs);
+      setSelectedJobId((current) => current && nextJobs.some((job) => job.id === current) ? current : nextJobs[0]?.id ?? null);
       setOrganizationId(data.organizationId);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load jobs'); }
   }, [accessToken]);
@@ -510,7 +512,6 @@ export function CompanyDashboard() {
   const profileName = session?.user.user_metadata?.full_name ?? session?.user.user_metadata?.name ?? session?.user.email ?? 'Demo recruiter';
   const stats = {
     jobs: jobs.length,
-    active: sessions.filter((s) => ['starting', 'active', 'in_progress'].includes(s.status)).length,
     completed: sessions.filter((s) => s.status === 'completed').length,
     candidates: jobCandidates.length,
   };
@@ -544,29 +545,9 @@ export function CompanyDashboard() {
       </header>
 
       <main className={styles.shell}>
-        {/* Hero */}
-        <section className={styles.hero}>
-          <div>
-            <span className={styles.eyebrow}>RECRUITER COMMAND CENTER</span>
-            <h1>Make every interview count.</h1>
-            <p>Build a defensible hiring bar, launch an adaptive panel, and keep the human decision separate from AI evidence.</p>
-          </div>
-          <div className={styles.heroActions}>
-            <Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>
-              {pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh
-            </Button>
-            <Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}>
-              <WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}
-            </Button>
-          </div>
-        </section>
-
-        {/* Metric bar */}
-        <section className={styles.metrics} aria-label="Pipeline statistics">
-          <Card className={styles.metricCard}><BriefcaseBusiness/><div><strong>{stats.jobs}</strong><span>Jobs</span></div></Card>
-          <Card className={styles.metricCard}><Users/><div><strong>{stats.candidates}</strong><span>Candidates</span></div></Card>
-          <Card className={styles.metricCard}><Radio/><div><strong>{stats.active}</strong><span>Live now</span></div></Card>
-          <Card className={styles.metricCard}><FileCheck2/><div><strong>{stats.completed}</strong><span>Ready to review</span></div></Card>
+        <section className={styles.workspaceBar}>
+          <div><span className={styles.eyebrow}>RECRUITING WORKSPACE</span><h1>Interviews</h1><p>{stats.jobs} roles · {stats.candidates} candidates · {stats.completed} ready for review</p></div>
+          <div className={styles.heroActions}><Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>{pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh</Button><Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}><WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}</Button></div>
         </section>
 
         {message && <div className={styles.notice} role="status"><Sparkles size={16}/><span>{message}</span></div>}
@@ -665,25 +646,13 @@ export function CompanyDashboard() {
                       <span><Clock3 size={11}/> Created {new Date(selectedJob.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  <span className={`${styles.jobStatus} ${styles[`jobStatus_${selectedJob.status}`] ?? ''}`}>{selectedJob.status}</span>
+                  <div className={styles.jobHeaderActions}>
+                    <span className={`${styles.jobStatus} ${styles[`jobStatus_${selectedJob.status}`] ?? ''}`}>{selectedJob.status}</span>
+                    <Button size="sm" className={styles.detailPrimary} onClick={() => setActiveTab(nextStep.tab)}>
+                      <WandSparkles size={13}/> {nextStep.label}
+                    </Button>
+                  </div>
                 </div>
-
-                <section className={styles.readinessCard} aria-label="Interview readiness">
-                  <div className={styles.readinessLead}>
-                    <span className={styles.sectionLabel}>INTERVIEW READINESS</span>
-                    <strong>{nextStep.label}</strong>
-                    <p>{nextStep.detail}</p>
-                  </div>
-                  <div className={styles.readinessFacts}>
-                    <span><b>{competencies.length}</b> competencies</span>
-                    <span><b>{interviews.length}</b> blueprints</span>
-                    <span><b>{jobCandidates.length}</b> candidates</span>
-                  </div>
-                  <div className={styles.readinessActions}>
-                    <Button variant="outline" size="sm" onClick={() => setActiveTab('candidates')}><UserPlus size={13}/> Candidates</Button>
-                    <Button size="sm" className={styles.detailPrimary} onClick={() => setActiveTab(nextStep.tab)}><WandSparkles size={13}/> {nextStep.label}</Button>
-                  </div>
-                </section>
 
                 {/* Tabs */}
                 <nav className={styles.tabs}>
@@ -882,7 +851,7 @@ export function CompanyDashboard() {
                             <span className={`${styles.stageBadge} ${styles[stageColors[jc.stage] ?? '']}`}>{jc.stage.replace('_', ' ')}</span>
                           </div>
 
-                          <div className={styles.decisionBox}>
+                          {(jc.stage === 'completed' || jc.stage === 'review' || Boolean(latestDecision)) && <div className={styles.decisionBox}>
                             <div className={styles.decisionHead}>
                               <span>Human decision</span>
                               {latestDecision ? <small>{latestDecision.decision.replace('_', ' ')} · {new Date(latestDecision.decidedAt).toLocaleDateString()}</small> : <small>AI advises; people decide</small>}
@@ -902,7 +871,7 @@ export function CompanyDashboard() {
                                 </button>
                               ))}
                             </div>
-                          </div>
+                          </div>}
 
                           {/* Resume attach */}
                           <label className={styles.resumeUpload}>
