@@ -24,3 +24,10 @@
 - `app/api/sessions/[id]/report`: company-authenticated report endpoint; only completed sessions return a report.
 - `lib/assessment-prompt.ts`: bounded quote catalog and validated narrative-only report enrichment.
 - `supabase/migrations`: schema, RLS, Realtime projection, retention, and the additive Hiring Graph foundation that keeps the interview runtime compatible while introducing Job/Candidate ownership.
+- `types/jobs.ts`: Zod schemas and TypeScript interfaces for `JobRecord`, `JobCompetencyRecord`, `CandidateRecord`, `JobCandidateRecord`, and their create/patch inputs.
+- `lib/job-store.ts`: Supabase-admin + in-memory-fallback store for jobs, competencies, candidates, and job_candidates — mirrors the `interview-store.ts` pattern.
+- `app/api/jobs/route.ts`: list and create jobs.
+- `app/api/jobs/[id]/route.ts`: get and patch a single job (with its competencies on GET).
+- `app/api/jobs/[id]/competencies/route.ts`: list, upsert, and delete competencies.
+- `app/api/jobs/[id]/candidates/route.ts`: list job_candidates and add new candidates (email-deduped upsert).
+- `app/api/jobs/[id]/candidates/[candidateId]/route.ts`: patch a job_candidate stage.

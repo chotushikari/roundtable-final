@@ -31,6 +31,7 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - UI components: `agora-agent-uikit` for visualizer, transcript, and mic controls
 - Server SDK: `agora-agents` for managed agent session startup
 - Product APIs: company interviews, signed invitations, sessions, artifacts, assessment release, MCP, and Agora webhooks live in `app/api`
+- Job APIs: `app/api/jobs` provides CRUD for jobs, competencies, candidates, and job_candidate pipeline records; `lib/job-store.ts` is the Supabase-admin + in-memory-fallback store; `types/jobs.ts` holds the schemas.
 - Voice pipeline: Agora-managed STT/TTS with an authenticated RoundTable custom LLM/controller endpoint
 - Persistence and auth: Google-only Supabase Auth for interviewers, with one idempotently provisioned private organization per authenticated user; process-local memory is development/test fallback only
 - Submission auth bypass: `NEXT_PUBLIC_DISABLE_COMPANY_AUTH=true` deliberately exposes one fixed company organization while retaining Supabase persistence; it is temporary and must never be used with real candidate data.
