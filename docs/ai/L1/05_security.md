@@ -4,7 +4,7 @@ Company APIs validate Google-backed Supabase bearer tokens and use an idempotent
 
 The custom LLM ignores caller-provided system messages and model names. Employer, resume, and transcript content are untrusted data. Only literal transcript quotes survive evidence validation. E2B receives no process environment or app secrets, accepts only Python/JavaScript/TypeScript checkpoints, runs a fixed command for 15 seconds, caps output, and permits at most five tool runs.
 
-`SARVAM_API_KEY` is a server-only TTS credential. It must never be added to client-visible environment variables, logs, API responses, examples with a real value, or source control.
+`SARVAM_API_KEY` is a server-only TTS credential. It must never be added to client-visible environment variables, logs, API responses, examples with a real value, or source control. `/api/ai/sarvam/tts` accepts only the same bearer credential from Agora GenericTTS, so it cannot become a public paid-synthesis proxy; it fixes the server-owned Bulbul v3 model and `shubh` speaker instead of trusting request-supplied provider settings.
 
 The optional camera interaction check requires a visible candidate consent action before camera access. Its Gemini key is server-only. Raw clips are used only for the immediate request and never stored, broadcast, scored, or included in assessment evidence. The result may only communicate whether the prompted interaction was observed, inconclusive, or unavailable; it must never identify a person, determine whether a voice is synthetic, allege deception, infer sensitive traits, or influence an employment decision.
 

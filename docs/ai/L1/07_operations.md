@@ -2,7 +2,7 @@
 
 Deploy as one Next.js app on Vercel and one Supabase project. Set all variables from `env.local.example`; keep certificate, service key, signing secret, Groq key, E2B key, and webhook secret server-only. Set `APP_BASE_URL` to the public HTTPS origin so Agora can reach the custom LLM route.
 
-Set `SARVAM_API_KEY` only in local `.env.local` and the Vercel server environment when Sarvam `shubh` should be the primary interview voice. With no key, the application constructs the existing MiniMax voice instead. Restart the local Next.js server after changing this value; provider errors during an active agent session do not trigger a voice swap.
+Set `SARVAM_API_KEY` only in local `.env.local` and the Vercel server environment when Sarvam `shubh` should be the primary interview voice. The managed agent uses Agora GenericTTS to call the authenticated `/api/ai/sarvam/tts` bridge, which fixes Sarvam's Bulbul v3 model, `shubh` speaker, and 24 kHz linear PCM output. With no key, the application constructs the existing MiniMax voice instead. Restart the local Next.js server after changing this value; provider errors during an active agent session do not trigger a voice swap.
 
 On Vercel, `VERCEL_PROJECT_PRODUCTION_URL` (falling back to `VERCEL_URL`) takes precedence for Agora callbacks and invitation links. This prevents a local or expired tunnel copied through `APP_BASE_URL` from breaking production. Enable only Google in Supabase Authentication, configure its Google OAuth client, and allow the deployed `/company` plus `/company/analysis/**` application redirect URLs.
 

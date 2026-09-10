@@ -2,13 +2,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInterviewTts } from '@/lib/interview-tts';
 
-test('Sarvam Shubh is selected when a server-only key is configured', () => {
-  assert.deepEqual(createInterviewTts('test-sarvam-key').toConfig(), {
-    vendor: 'sarvam',
+test('Sarvam Shubh uses the authenticated Bulbul v3 PCM bridge when configured', () => {
+  assert.deepEqual(createInterviewTts('test-sarvam-key', 'https://example.com/').toConfig(), {
+    vendor: 'generic_http',
+    url: 'https://example.com/api/ai/sarvam/tts',
+    headers: {
+      Authorization: 'Bearer test-sarvam-key',
+    },
     params: {
-      api_subscription_key: 'test-sarvam-key',
-      speaker: 'shubh',
-      target_language_code: 'en-IN',
+      model: 'bulbul:v3',
+      voice: 'shubh',
+      speed: 1,
+      sample_rate: 24000,
+      response_format: 'pcm',
     },
   });
 });

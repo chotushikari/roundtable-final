@@ -14,11 +14,13 @@
 - `components/InterviewWorkspace.tsx`: Monaco, one embedded Excalidraw canvas, autosaved drafts, and checkpoints.
 - `app/api/interviews`, `invitations`, `sessions`: product and lifecycle APIs, including responsive background agent startup.
 - `app/api/ai/chat/completions`: authenticated Agora custom LLM boundary.
+- `app/api/ai/sarvam/tts`: authenticated internal Sarvam Bulbul v3 `shubh` to 24 kHz PCM bridge for Agora GenericTTS.
 - `app/api/mcp/[grant]`: session-scoped Streamable HTTP MCP endpoint.
 - `lib/interview-controller.ts`: evaluator validation and deterministic next-speaker rules.
 - `lib/interview-demo.ts`: five-role showcase order, opening/closing text, and answered-role progress.
 - `lib/interview-store.ts`: Supabase/in-memory persistence adapter.
 - `lib/agora-server.ts`: combined tokens and managed-agent start/stop.
+- `lib/interview-tts.ts`, `lib/public-url.ts`: Sarvam-or-MiniMax TTS selection and public Agora callback origin resolution.
 - `lib/assessment.ts`: evidence-only final report combining validated transcript quotes with conservative completed-workspace artifact-version evidence.
 - `lib/company-report.ts`: stable company-facing completed-interview projection, including a bounded per-turn adaptation trail rather than private controller state.
 - `app/api/sessions/[id]/report`: company-authenticated report endpoint; only completed sessions return a report.

@@ -32,7 +32,7 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - Server SDK: `agora-agents` for managed agent session startup
 - Product APIs: company interviews, signed invitations, sessions, artifacts, assessment release, MCP, and Agora webhooks live in `app/api`
 - Job APIs: `app/api/jobs` provides CRUD for jobs, competencies, candidates, and job_candidate pipeline records; `lib/job-store.ts` is the Supabase-admin + in-memory-fallback store; `types/jobs.ts` holds the schemas.
-- Voice pipeline: Agora-managed Deepgram STT plus an authenticated RoundTable custom LLM/controller endpoint; Sarvam `shubh` TTS is selected only with server-only `SARVAM_API_KEY`, otherwise MiniMax is the startup fallback. Do not claim an automatic mid-session provider fallback.
+- Voice pipeline: Agora-managed Deepgram STT plus an authenticated RoundTable custom LLM/controller endpoint; Sarvam Bulbul v3 `shubh` TTS is served through the authenticated `/api/ai/sarvam/tts` PCM bridge only with server-only `SARVAM_API_KEY`, otherwise MiniMax is the startup fallback. Do not claim an automatic mid-session provider fallback.
 - Persistence and auth: Google-only Supabase Auth for interviewers, with one idempotently provisioned private organization per authenticated user; process-local memory is development/test fallback only
 - Submission auth bypass: `NEXT_PUBLIC_DISABLE_COMPANY_AUTH=true` deliberately exposes one fixed company organization while retaining Supabase persistence; it is temporary and must never be used with real candidate data.
 - Workspaces: Monaco code and one Excalidraw canvas with private checkpoints; server-selected E2B execution

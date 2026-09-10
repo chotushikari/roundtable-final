@@ -13,6 +13,7 @@ import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import type { PanelRole } from '@/types/interview';
 import { DEMO_OPENING_QUESTION } from '@/lib/interview-demo';
 import { createInterviewTts } from '@/lib/interview-tts';
+import { resolvePublicBaseUrl } from '@/lib/public-url';
 
 const TOKEN_TTL_SECONDS = 3_600;
 
@@ -46,22 +47,6 @@ export function createAgoraToken(channel: string, uid: string): { token: string;
     ),
     expiresAt: new Date(expires * 1_000).toISOString(),
   };
-}
-
-function baseUrl(): string {
-  const envUrl = process.env.APP_BASE_URL?.trim();
-  if (envUrl) {
-    return envUrl.startsWith('http') ? envUrl.replace(/\/$/, '') : `https://${envUrl.replace(/\/$/, '')}`;
-  }
-  const vercelUrl =
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
-    process.env.VERCEL_URL ??
-    process.env.NEXT_PUBLIC_VERCEL_URL;
-  if (vercelUrl) {
-    const clean = vercelUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    return `https://${clean}`;
-  }
-  return process.env.NODE_ENV === 'production' ? 'https://round-ai.vercel.app' : 'http://localhost:3000';
 }
 
 function resolveAgoraArea(): AgoraArea {
@@ -146,7 +131,7 @@ export async function startInterviewAgent({
     .withStt(new DeepgramSTT({ model: 'nova-3', language: 'en' }))
     .withLlm(new CustomLLM({
       apiKey: llmToken,
-      url: `${baseUrl()}/api/ai/chat/completions`,
+      url: `${resolvePublicBaseUrl()}/api/ai/chat/completions`,
       model: 'roundtable-controller',
       systemMessages: [{ role: 'system', content: instructions }],
     }))
