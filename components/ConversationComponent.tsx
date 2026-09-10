@@ -44,7 +44,7 @@ import {
   type QuickstartAgentMetric,
 } from './QuickstartPipelineMetrics';
 import { QuickstartTranscriptPanel } from './QuickstartTranscriptPanel';
-import { PanelAvatar } from './PanelAvatar';
+import { SimliAvatarStage } from './SimliAvatarStage';
 import { InterviewPreparationScreen } from './InterviewPreparationScreen';
 import type { ConversationComponentProps } from '@/types/conversation';
 import { DEMO_CLOSING, normalizeSpokenText, PREPARATION_SECONDS } from '@/lib/interview-demo';
@@ -167,6 +167,7 @@ export default function ConversationComponent({
   >([]);
   const [agentState, setAgentState] = useState<AgentState | null>(null);
   const [agentMetrics, setAgentMetrics] = useState<QuickstartAgentMetric[]>([]);
+  const [interruptionVersion, setInterruptionVersion] = useState(0);
   const [connectionIssues, setConnectionIssues] = useState<ConnectionIssue[]>(
     [],
   );
@@ -297,6 +298,7 @@ export default function ConversationComponent({
         ai.on(AgoraVoiceAIEvents.AGENT_INTERRUPTED, (_, event) => {
           if (interruptedTurnIdsRef.current.has(event.turnID)) return;
           interruptedTurnIdsRef.current.add(event.turnID);
+          setInterruptionVersion((version) => version + 1);
           logEvent('INTERRUPTED', { turnId: event.turnID });
         });
         ai.on(AgoraVoiceAIEvents.AGENT_METRICS, (_, metrics) => {
@@ -774,7 +776,13 @@ export default function ConversationComponent({
           role="region"
           aria-label="AI agent status visualization"
         >
-          <PanelAvatar role={activeRole} state={agentState} />
+          <SimliAvatarStage
+            sessionId={agoraData.sessionId}
+            role={activeRole}
+            state={agentState}
+            audioTrack={remoteUsers.find((user) => String(user.uid) === agentUID)?.audioTrack}
+            interruptionVersion={interruptionVersion}
+          />
           <AgentVisualizer state={visualizerState} size="lg" />
           {remoteUsers.map((user) => (
             <div key={user.uid} className="hidden">

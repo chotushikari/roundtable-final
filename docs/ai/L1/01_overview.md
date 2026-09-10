@@ -4,7 +4,7 @@ RoundTable is an adaptive technical interview aid. Companies supply a JD, desire
 
 The recruiter workspace is guided by the real sequence—hiring bar, blueprint, candidates, and evidence review. Its templates, seniority selector, and focus chips populate stored blueprint fields, while its workflow controls navigate to the corresponding real API-backed operation. It never represents a recruiter-side progress indicator as live model scoring.
 
-The MVP includes voice, transcript evidence, role handoffs, adaptive difficulty, code and system-design workspaces, MCP actions, and post-session assessment. Raw media, biometric analysis, avatars, and automated hiring decisions are out of scope.
+The MVP includes voice, transcript evidence, role handoffs, adaptive difficulty, code and system-design workspaces, MCP actions, and post-session assessment. An optional presentation-only Simli interviewer video can consume AI output only with server-side credentials and a local visual fallback; it is never raw candidate media, biometric analysis, or assessment input. Automated hiring decisions remain out of scope.
 
 The public homepage demonstrates the product through one pinned visual narrative: a single RoundTable core, five connected panel roles, a bounded one-question Agora voice sample, and a final cursor-aware companion scene. Candidates still enter real interviews only through signed invitation links.
 
