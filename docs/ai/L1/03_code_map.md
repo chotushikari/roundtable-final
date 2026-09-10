@@ -6,7 +6,7 @@
 - `lib/workspace-conversation.ts`: non-scoring voice workspace commands and checkpoint follow-ups.
 
 - `components/LandingPage.tsx`, `ConversationComponent.tsx`: candidate bootstrap and Agora lifecycle.
-- `components/SimliAvatarStage.tsx`, `app/api/sessions/[id]/avatar/simli`: optional short-lived visual-avatar bootstrap and remote-AI-audio-only Simli presentation.
+- `components/DigitalPanelStage.tsx`: local disclosed AI-host stage with active panel role, agent state, shared-context panel map, and no external visual-media dependency.
 - `components/InterviewPreparationScreen.tsx`: shared full-screen candidate setup surface used during bootstrap and RTC/panel readiness; it reports only truthful connection state.
 - `components/RoundTableExperience.tsx` and its CSS module: public scroll narrative, Three.js artifact, five-role labels, embedded compact Agora sample, and companion interaction.
 - `app/page.tsx`, `app/loading.tsx`: public experience entry point and reduced-motion-safe transition mark.

@@ -22,7 +22,6 @@ import {
   type UserTranscription,
   type AgentTranscription,
 } from 'agora-agent-client-toolkit';
-import { AgentVisualizer } from './AgentVisualizer';
 import { MicButtonWithVisualizer } from './MicButtonWithVisualizer';
 import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import {
@@ -44,7 +43,7 @@ import {
   type QuickstartAgentMetric,
 } from './QuickstartPipelineMetrics';
 import { QuickstartTranscriptPanel } from './QuickstartTranscriptPanel';
-import { SimliAvatarStage } from './SimliAvatarStage';
+import { DigitalPanelStage } from './DigitalPanelStage';
 import { InterviewPreparationScreen } from './InterviewPreparationScreen';
 import type { ConversationComponentProps } from '@/types/conversation';
 import { DEMO_CLOSING, normalizeSpokenText, PREPARATION_SECONDS } from '@/lib/interview-demo';
@@ -771,15 +770,11 @@ export default function ConversationComponent({
           role="region"
           aria-label="AI agent status visualization"
         >
-          <SimliAvatarStage
-            sessionId={agoraData.sessionId}
+          <DigitalPanelStage
             role={activeRole}
-            state={agentState}
-            audioTrack={remoteUsers.find((user) => String(user.uid) === agentUID)?.audioTrack}
-            interruptionVersion={interruptionVersion}
-            warmup={preparationSeconds >= 8}
+            state={visualizerState}
+            currentUtterance={currentInProgressMessage ? String(currentInProgressMessage.text) : undefined}
           />
-          <AgentVisualizer state={visualizerState} size="lg" />
           {remoteUsers.map((user) => (
             <div key={user.uid} className="hidden">
               {typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}
