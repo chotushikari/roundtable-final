@@ -8,7 +8,7 @@ import {
   Activity, ArrowLeft, ArrowRight, Briefcase, BriefcaseBusiness, Check,
   CheckCircle2, ChevronRight, Clipboard, Clock3, FileCheck2, FileText,
   Link2, LoaderCircle, LogOut, MapPin, Plus, Radio, RefreshCw, ShieldCheck,
-  Sparkles, Tag, Upload, Users, X,
+  Sparkles, Tag, Upload, Users, UserPlus, WandSparkles, X,
 } from 'lucide-react';
 import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
 import type { PanelRole } from '@/types/interview';
@@ -51,6 +51,27 @@ const roleDescriptions: Record<PanelRole, string> = {
   customer: 'adoption and support reality',
   behavioral: 'collaboration and learning',
 };
+const interviewTemplates = {
+  backend: {
+    label: 'Backend engineering',
+    title: 'Backend Engineer',
+    context: 'Build reliable backend services. Assess API design, data modelling, caching, observability, trade-offs, and how engineering decisions affect customers.',
+    outcomes: ['System design', 'API design', 'Caching and performance', 'Customer impact'],
+  },
+  frontend: {
+    label: 'Frontend engineering',
+    title: 'Frontend Engineer',
+    context: 'Build accessible, reliable product interfaces. Assess component design, state management, performance, quality, and user impact.',
+    outcomes: ['Frontend architecture', 'Accessibility', 'Performance', 'Product judgement'],
+  },
+  product: {
+    label: 'Product management',
+    title: 'Product Manager',
+    context: 'Own product discovery and delivery. Assess customer problem framing, prioritisation, metrics, collaboration, and decision trade-offs.',
+    outcomes: ['Customer discovery', 'Prioritisation', 'Metrics', 'Cross-functional leadership'],
+  },
+} as const;
+const focusOptions = ['System design', 'Caching & performance', 'Customer impact', 'Ownership', 'API design', 'Data modelling'];
 
 function GoogleMark() {
   return <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.googleMark}><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.42l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.6 0-4.81-1.76-5.6-4.13H3.06v2.62A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.87A6 6 0 0 1 6.1 12c0-.65.11-1.28.3-1.87V7.51H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.49l3.34-2.62Z"/><path fill="#EA4335" d="M12 6c1.47 0 2.78.5 3.82 1.49l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.94 5.51l3.34 2.62C7.19 7.76 9.4 6 12 6Z"/></svg>;
@@ -109,6 +130,8 @@ export function CompanyDashboard() {
   const [interviewMode, setInterviewMode] = useState<'showcase' | 'adaptive'>('showcase');
   const [panelRoles, setPanelRoles] = useState<PanelRole[]>([...DEMO_ROLES]);
   const [durationMinutes, setDurationMinutes] = useState(DEMO_DURATION_MINUTES);
+  const [seniority, setSeniority] = useState('intern');
+  const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>(['System design', 'Customer impact']);
 
   // ── Add candidate form ───────────────────────────────────────────────────────
   const [candidateName, setCandidateName] = useState('');
@@ -297,9 +320,10 @@ export function CompanyDashboard() {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           title: `${roleTitle.trim()} ${isShowcase ? 'Showcase' : 'Adaptive'} Interview`.slice(0, 120), roleTitle, jdText,
-          desiredOutcomes: outcomes.split('\n').map((s) => s.trim()).filter(Boolean),
+          desiredOutcomes: [...new Set([...outcomes.split('\n').map((s) => s.trim()).filter(Boolean), ...selectedFocusAreas])],
           mustAskQuestions: mustAsk.split('\n').map((s) => s.trim()).filter(Boolean),
           panelRoles: selectedRoles, durationMinutes: selectedDuration, demoMode: isShowcase,
+          instructions: `Seniority expectation: ${seniority}. Keep questions calibrated to this level while assessing only role-relevant evidence.`,
           jobId: selectedJobId,
         }),
       });
@@ -333,6 +357,21 @@ export function CompanyDashboard() {
       if (current.includes(role)) return current.length > 2 ? current.filter((item) => item !== role) : current;
       return [...current, role];
     });
+  }
+
+  function applyTemplate(templateKey: keyof typeof interviewTemplates) {
+    const template = interviewTemplates[templateKey];
+    setRoleTitle(template.title);
+    setJdText(template.context);
+    setOutcomes(template.outcomes.join('\n'));
+    setSelectedFocusAreas([...template.outcomes]);
+    setMessage(`${template.label} template applied. Review the context, then generate the blueprint.`);
+  }
+
+  function toggleFocusArea(focusArea: string) {
+    setSelectedFocusAreas((current) => current.includes(focusArea)
+      ? current.filter((item) => item !== focusArea)
+      : [...current, focusArea]);
   }
 
   async function addCandidate() {
@@ -495,12 +534,17 @@ export function CompanyDashboard() {
         <section className={styles.hero}>
           <div>
             <span className={styles.eyebrow}>RECRUITER COMMAND CENTER</span>
-            <h1>Hiring pipeline</h1>
-            <p>Create a job, define competencies, configure a blueprint, add candidates, and generate private interview links — all in one place.</p>
+            <h1>Make every interview count.</h1>
+            <p>Build a defensible hiring bar, launch an adaptive panel, and keep the human decision separate from AI evidence.</p>
           </div>
-          <Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>
-            {pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh
-          </Button>
+          <div className={styles.heroActions}>
+            <Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>
+              {pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh
+            </Button>
+            <Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}>
+              <WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}
+            </Button>
+          </div>
         </section>
 
         {/* Metric bar */}
@@ -610,6 +654,29 @@ export function CompanyDashboard() {
                   <span className={`${styles.jobStatus} ${styles[`jobStatus_${selectedJob.status}`] ?? ''}`}>{selectedJob.status}</span>
                 </div>
 
+                <section className={styles.workflowBar} aria-label="Recruiter workflow">
+                  <button type="button" className={competencies.length >= 3 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('competencies')}>
+                    <b>{competencies.length >= 3 ? <Check size={13}/> : '01'}</b><span><strong>Set hiring bar</strong><small>{competencies.length >= 3 ? `${competencies.length} competencies ready` : 'Add at least 3 competencies'}</small></span>
+                  </button>
+                  <button type="button" className={interviews.length > 0 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('blueprint')}>
+                    <b>{interviews.length > 0 ? <Check size={13}/> : '02'}</b><span><strong>Build interview</strong><small>{interviews.length > 0 ? `${interviews.length} blueprint${interviews.length === 1 ? '' : 's'} ready` : 'Choose mode and panel'}</small></span>
+                  </button>
+                  <button type="button" className={jobCandidates.length > 0 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('candidates')}>
+                    <b>{jobCandidates.length > 0 ? <Check size={13}/> : '03'}</b><span><strong>Invite candidates</strong><small>{jobCandidates.length > 0 ? `${jobCandidates.length} candidate${jobCandidates.length === 1 ? '' : 's'} added` : 'Create a private link'}</small></span>
+                  </button>
+                  <button type="button" className={stats.completed > 0 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('pipeline')}>
+                    <b>{stats.completed > 0 ? <Check size={13}/> : '04'}</b><span><strong>Review evidence</strong><small>{stats.completed > 0 ? `${stats.completed} interview${stats.completed === 1 ? '' : 's'} ready` : 'Human review stays required'}</small></span>
+                  </button>
+                </section>
+
+                <div className={styles.detailActions}>
+                  <span>Next: {competencies.length < 3 ? 'define the hiring bar' : interviews.length === 0 ? 'build the interview' : jobCandidates.length === 0 ? 'add a candidate' : 'monitor the pipeline'}</span>
+                  <div>
+                    <Button size="sm" variant="outline" onClick={() => setActiveTab('candidates')}><UserPlus size={13}/> Add candidate</Button>
+                    <Button size="sm" className={styles.detailPrimary} onClick={() => setActiveTab('blueprint')}><WandSparkles size={13}/> Build interview</Button>
+                  </div>
+                </div>
+
                 {/* Tabs */}
                 <nav className={styles.tabs}>
                   {(['competencies', 'blueprint', 'candidates', 'pipeline'] as const).map((tab, i) => (
@@ -714,9 +781,20 @@ export function CompanyDashboard() {
                     ) : null}
                     <Card className={`${styles.panel} ${styles.inlineCard}`}>
                       <CardContent className={styles.form}>
-                        <label className={styles.field}><span>Role title</span><input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Frontend Engineer"/></label>
+                        <div className={styles.builderHeader}>
+                          <div><span className={styles.sectionLabel}>INTERVIEW SETUP</span><strong>Configure the evidence you need</strong></div>
+                          <small>All panel handoffs and ratings remain server-owned.</small>
+                        </div>
+                        <div className={styles.templateRow} aria-label="Role templates">
+                          {Object.entries(interviewTemplates).map(([key, template]) => <button key={key} type="button" onClick={() => applyTemplate(key as keyof typeof interviewTemplates)}>{template.label}</button>)}
+                        </div>
+                        <div className={styles.formSplit}>
+                          <label className={styles.field}><span>Role title</span><input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Frontend Engineer"/></label>
+                          <label className={styles.field}><span>Seniority</span><select value={seniority} onChange={(e) => setSeniority(e.target.value)} className={styles.select}><option value="intern">Intern / graduate</option><option value="junior">Junior</option><option value="mid">Mid-level</option><option value="senior">Senior</option><option value="staff">Staff / principal</option></select></label>
+                        </div>
                         <label className={styles.field}><span>Role context and requirements</span><textarea value={jdText} onChange={(e) => setJdText(e.target.value)} rows={5}/></label>
                         <label className={styles.field}><span>Focus areas and outcomes <small>one per line</small></span><textarea value={outcomes} onChange={(e) => setOutcomes(e.target.value)} rows={4}/></label>
+                        <div className={styles.focusBlock}><span>Quick focus areas</span><div>{focusOptions.map((focusArea) => <button key={focusArea} type="button" className={selectedFocusAreas.includes(focusArea) ? styles.focusActive : ''} onClick={() => toggleFocusArea(focusArea)}>{selectedFocusAreas.includes(focusArea) && <Check size={11}/>} {focusArea}</button>)}</div></div>
                         <label className={styles.field}><span>Must-ask questions <small>optional, one per line</small></span><textarea value={mustAsk} onChange={(e) => setMustAsk(e.target.value)} rows={3} placeholder="Add questions the panel must cover"/></label>
                         <div className={styles.modePicker} aria-label="Interview mode">
                           <button type="button" className={`${styles.modeCard} ${interviewMode === 'showcase' ? styles.modeCardActive : ''}`} onClick={() => chooseInterviewMode('showcase')}>
