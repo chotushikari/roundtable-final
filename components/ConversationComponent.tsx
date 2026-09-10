@@ -664,15 +664,9 @@ export default function ConversationComponent({
 
   const roomReady = joinSuccess && isAgentConnected;
   const preparationComplete = roomReady && preparationSeconds >= PREPARATION_SECONDS;
-
-  if (!compactDemo && !companionDemo && !preparationComplete) {
-    return (
-      <>
-        <InterviewPreparationScreen phase="connecting" secondsRemaining={Math.max(0, PREPARATION_SECONDS - preparationSeconds)} roomReady={roomReady} onLeave={handleEndConversation} />
-        {remoteUsers.map((user) => <div key={user.uid} className="hidden">{typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}</div>)}
-      </>
-    );
-  }
+  const preparationOverlay = !compactDemo && !companionDemo && !preparationComplete
+    ? <InterviewPreparationScreen phase="connecting" secondsRemaining={Math.max(0, PREPARATION_SECONDS - preparationSeconds)} roomReady={roomReady} onLeave={handleEndConversation} overlay />
+    : null;
 
   if (compactDemo) {
     if (companionDemo) {
@@ -744,6 +738,7 @@ export default function ConversationComponent({
   }
 
   return (
+    <>
     <QuickstartConversationLayout
       workspacePrompt={workspacePrompt}
       activeModality={activeModality}
@@ -782,6 +777,7 @@ export default function ConversationComponent({
             state={agentState}
             audioTrack={remoteUsers.find((user) => String(user.uid) === agentUID)?.audioTrack}
             interruptionVersion={interruptionVersion}
+            warmup={preparationSeconds >= 8}
           />
           <AgentVisualizer state={visualizerState} size="lg" />
           {remoteUsers.map((user) => (
@@ -815,5 +811,7 @@ export default function ConversationComponent({
       }
       onEndConversation={handleEndConversation}
     />
+    {preparationOverlay}
+    </>
   );
 }

@@ -11,17 +11,21 @@ type Props = {
   state: string | null;
   audioTrack?: { getMediaStreamTrack: () => MediaStreamTrack };
   interruptionVersion: number;
+  warmup?: boolean;
 };
 
-export function SimliAvatarStage({ sessionId, role, state, audioTrack, interruptionVersion }: Props) {
+export function SimliAvatarStage({ sessionId, role, state, audioTrack, interruptionVersion, warmup = true }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const clientRef = useRef<{ stop: () => Promise<void>; ClearBuffer: () => void } | null>(null);
+  const audioTrackRef = useRef<Props['audioTrack']>(undefined);
+  const attachedTrackRef = useRef<MediaStreamTrack | null>(null);
+  const attachAgentAudioRef = useRef<() => void>(() => {});
   const [status, setStatus] = useState<'idle' | 'connecting' | 'live' | 'fallback'>('idle');
   const [detail, setDetail] = useState('Voice-first interview panel');
 
   useEffect(() => {
-    if (!sessionId || !audioTrack || !videoRef.current || !audioRef.current) return;
+    if (!sessionId || !warmup || !videoRef.current || !audioRef.current) return;
     let cancelled = false;
     setStatus('connecting');
     setDetail('Preparing AI interviewer video…');
@@ -42,11 +46,18 @@ export function SimliAvatarStage({ sessionId, role, state, audioTrack, interrupt
         simli.on('start', () => { if (!cancelled) { setStatus('live'); setDetail('Live AI interviewer video'); } });
         simli.on('error', () => { if (!cancelled) { setStatus('fallback'); setDetail('Voice interview continues without video'); } });
         clientRef.current = simli;
+        attachAgentAudioRef.current = () => {
+          const track = audioTrackRef.current?.getMediaStreamTrack();
+          if (track && attachedTrackRef.current !== track) {
+            simli.listenToMediastreamTrack(track);
+            attachedTrackRef.current = track;
+          }
+        };
         // Simli resolves start only after its first rendered video frame. Feed
         // the already-subscribed Agora agent track immediately so an idle
         // frame is not waiting on the very audio that follows start().
         const startPromise = simli.start();
-        simli.listenToMediastreamTrack(audioTrack.getMediaStreamTrack());
+        attachAgentAudioRef.current();
         await startPromise;
       } catch (error) {
         console.warn('[SimliAvatar] visual session unavailable', error);
@@ -58,9 +69,16 @@ export function SimliAvatarStage({ sessionId, role, state, audioTrack, interrupt
       cancelled = true;
       const client = clientRef.current;
       clientRef.current = null;
+      attachedTrackRef.current = null;
+      attachAgentAudioRef.current = () => {};
       if (client) void client.stop().catch(() => {});
     };
-  }, [sessionId, audioTrack]);
+  }, [sessionId, warmup]);
+
+  useEffect(() => {
+    audioTrackRef.current = audioTrack;
+    attachAgentAudioRef.current();
+  }, [audioTrack]);
 
   useEffect(() => {
     if (interruptionVersion > 0) clientRef.current?.ClearBuffer();
