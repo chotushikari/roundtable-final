@@ -511,6 +511,13 @@ export function CompanyDashboard() {
     completed: sessions.filter((s) => s.status === 'completed').length,
     candidates: jobCandidates.length,
   };
+  const nextStep = competencies.length < 3
+    ? { tab: 'competencies' as const, label: 'Set hiring bar', detail: 'Add at least three weighted competencies before you launch.' }
+    : interviews.length === 0
+      ? { tab: 'blueprint' as const, label: 'Create interview', detail: 'Choose the panel and the evidence the interview should collect.' }
+      : jobCandidates.length === 0
+        ? { tab: 'candidates' as const, label: 'Add candidate', detail: 'Create a private candidate record, then generate a single-use link.' }
+        : { tab: 'pipeline' as const, label: 'Review pipeline', detail: 'Monitor completed interviews and open evidence reports for human review.' };
 
   // ─── Main dashboard ──────────────────────────────────────────────────────────
   return (
@@ -654,28 +661,22 @@ export function CompanyDashboard() {
                   <span className={`${styles.jobStatus} ${styles[`jobStatus_${selectedJob.status}`] ?? ''}`}>{selectedJob.status}</span>
                 </div>
 
-                <section className={styles.workflowBar} aria-label="Recruiter workflow">
-                  <button type="button" className={competencies.length >= 3 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('competencies')}>
-                    <b>{competencies.length >= 3 ? <Check size={13}/> : '01'}</b><span><strong>Set hiring bar</strong><small>{competencies.length >= 3 ? `${competencies.length} competencies ready` : 'Add at least 3 competencies'}</small></span>
-                  </button>
-                  <button type="button" className={interviews.length > 0 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('blueprint')}>
-                    <b>{interviews.length > 0 ? <Check size={13}/> : '02'}</b><span><strong>Build interview</strong><small>{interviews.length > 0 ? `${interviews.length} blueprint${interviews.length === 1 ? '' : 's'} ready` : 'Choose mode and panel'}</small></span>
-                  </button>
-                  <button type="button" className={jobCandidates.length > 0 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('candidates')}>
-                    <b>{jobCandidates.length > 0 ? <Check size={13}/> : '03'}</b><span><strong>Invite candidates</strong><small>{jobCandidates.length > 0 ? `${jobCandidates.length} candidate${jobCandidates.length === 1 ? '' : 's'} added` : 'Create a private link'}</small></span>
-                  </button>
-                  <button type="button" className={stats.completed > 0 ? styles.workflowDone : styles.workflowAction} onClick={() => setActiveTab('pipeline')}>
-                    <b>{stats.completed > 0 ? <Check size={13}/> : '04'}</b><span><strong>Review evidence</strong><small>{stats.completed > 0 ? `${stats.completed} interview${stats.completed === 1 ? '' : 's'} ready` : 'Human review stays required'}</small></span>
-                  </button>
-                </section>
-
-                <div className={styles.detailActions}>
-                  <span>Next: {competencies.length < 3 ? 'define the hiring bar' : interviews.length === 0 ? 'build the interview' : jobCandidates.length === 0 ? 'add a candidate' : 'monitor the pipeline'}</span>
-                  <div>
-                    <Button size="sm" variant="outline" onClick={() => setActiveTab('candidates')}><UserPlus size={13}/> Add candidate</Button>
-                    <Button size="sm" className={styles.detailPrimary} onClick={() => setActiveTab('blueprint')}><WandSparkles size={13}/> Build interview</Button>
+                <section className={styles.readinessCard} aria-label="Interview readiness">
+                  <div className={styles.readinessLead}>
+                    <span className={styles.sectionLabel}>INTERVIEW READINESS</span>
+                    <strong>{nextStep.label}</strong>
+                    <p>{nextStep.detail}</p>
                   </div>
-                </div>
+                  <div className={styles.readinessFacts}>
+                    <span><b>{competencies.length}</b> competencies</span>
+                    <span><b>{interviews.length}</b> blueprints</span>
+                    <span><b>{jobCandidates.length}</b> candidates</span>
+                  </div>
+                  <div className={styles.readinessActions}>
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab('candidates')}><UserPlus size={13}/> Candidates</Button>
+                    <Button size="sm" className={styles.detailPrimary} onClick={() => setActiveTab(nextStep.tab)}><WandSparkles size={13}/> {nextStep.label}</Button>
+                  </div>
+                </section>
 
                 {/* Tabs */}
                 <nav className={styles.tabs}>
