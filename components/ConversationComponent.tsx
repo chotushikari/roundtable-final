@@ -47,7 +47,7 @@ import { QuickstartTranscriptPanel } from './QuickstartTranscriptPanel';
 import { PanelAvatar } from './PanelAvatar';
 import { InterviewPreparationScreen } from './InterviewPreparationScreen';
 import type { ConversationComponentProps } from '@/types/conversation';
-import { DEMO_CLOSING, normalizeSpokenText } from '@/lib/interview-demo';
+import { DEMO_CLOSING, normalizeSpokenText, PREPARATION_SECONDS } from '@/lib/interview-demo';
 
 // Cap the displayed issues list to avoid overwhelming the UI during a cascade of errors.
 const MAX_CONNECTION_ISSUES = 6;
@@ -226,8 +226,8 @@ export default function ConversationComponent({
   // Do NOT pass `isEnabled` — that ties track lifetime to mute state and breaks the Web Audio
   // graph inside MicButtonWithVisualizer. Mute uses track.setEnabled() only.
   // The preparation period is intentional for the finale. Do not request or
-  // publish candidate audio until its full twenty seconds have elapsed.
-  const { localMicrophoneTrack } = useLocalMicrophoneTrack(isReady && preparationSeconds >= 20);
+  // publish candidate audio until its full fifteen seconds have elapsed.
+  const { localMicrophoneTrack } = useLocalMicrophoneTrack(isReady && preparationSeconds >= PREPARATION_SECONDS);
 
   // ENABLE_AUDIO_PTS is a module-level SDK parameter (not on the client instance).
   // It must be set before publishing audio for transcript timing to be accurate.
@@ -661,12 +661,12 @@ export default function ConversationComponent({
   }, [agentState, agentUID, compactDemo, companionDemo, handleEndConversation, transcript]);
 
   const roomReady = joinSuccess && isAgentConnected;
-  const preparationComplete = roomReady && preparationSeconds >= 20;
+  const preparationComplete = roomReady && preparationSeconds >= PREPARATION_SECONDS;
 
   if (!compactDemo && !companionDemo && !preparationComplete) {
     return (
       <>
-        <InterviewPreparationScreen phase="connecting" secondsRemaining={Math.max(0, 20 - preparationSeconds)} roomReady={roomReady} onLeave={handleEndConversation} />
+        <InterviewPreparationScreen phase="connecting" secondsRemaining={Math.max(0, PREPARATION_SECONDS - preparationSeconds)} roomReady={roomReady} onLeave={handleEndConversation} />
         {remoteUsers.map((user) => <div key={user.uid} className="hidden">{typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}</div>)}
       </>
     );

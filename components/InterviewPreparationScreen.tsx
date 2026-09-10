@@ -31,7 +31,7 @@ export function InterviewPreparationScreen({
         <div className="mt-7 grid gap-3">
           {[
             ['AI disclosure', 'You are speaking with an AI panel, not a human interviewer.'],
-            ['Voice check', 'Speak normally once the interviewer begins; your microphone is prepared now.'],
+            ['Voice check', 'No need to speak yet. Your microphone turns on when the interview begins.'],
             ['How you are assessed', 'Only your interview answers and deliberate workspace checkpoints become evidence.'],
           ].map(([title, detail], index) => <div key={title} className="flex gap-3 rounded-xl border border-[#2a302c] bg-[#171a18] p-3.5"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#1d4a31] font-mono text-[10px] font-bold text-[#8ee8b8]">0{index + 1}</span><div><strong className="block text-xs font-semibold text-[#d9dfdb]">{title}</strong><span className="mt-1 block text-[11px] leading-5 text-[#7f8b84]">{detail}</span></div></div>)}
         </div>

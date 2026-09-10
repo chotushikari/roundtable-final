@@ -41,7 +41,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
     if (!version) throw new Error('Published interview plan not found');
-    const companyName = await interviewStore.getOrganizationName(session.organizationId);
     let agentId: string | null = null;
     try {
       agentId = await startInterviewAgent({
@@ -50,8 +49,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         rtcUid: session.rtcUid,
         llmToken,
         roleTitle: version.definition.roleTitle,
-        companyName,
-        panelRoles: version.definition.panelRoles,
         durationMinutes: version.definition.durationMinutes,
         demoMode: version.definition.demoMode,
       });

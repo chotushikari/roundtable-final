@@ -10,7 +10,6 @@ import {
   ExpiresIn,
 } from 'agora-agents';
 import { DEFAULT_AGENT_UID } from '@/lib/agora';
-import type { PanelRole } from '@/types/interview';
 import { DEMO_OPENING_QUESTION } from '@/lib/interview-demo';
 import { createInterviewTts } from '@/lib/interview-tts';
 import { resolvePublicBaseUrl } from '@/lib/public-url';
@@ -64,8 +63,6 @@ export async function startInterviewAgent({
   rtcUid,
   llmToken,
   roleTitle = 'Software Engineer',
-  companyName = 'the hiring company',
-  panelRoles = ['technical'],
   durationMinutes = 30,
   demoMode = false,
 }: {
@@ -74,8 +71,6 @@ export async function startInterviewAgent({
   rtcUid: string;
   llmToken: string;
   roleTitle?: string;
-  companyName?: string;
-  panelRoles?: PanelRole[];
   durationMinutes?: number;
   demoMode?: boolean;
 }): Promise<string> {
@@ -84,27 +79,14 @@ export async function startInterviewAgent({
     appId: requireAgoraEnv('NEXT_PUBLIC_AGORA_APP_ID'),
     appCertificate: requireAgoraEnv('NEXT_AGORA_APP_CERTIFICATE'),
   });
-  const roleNames: Record<PanelRole, string> = {
-    technical: 'technical interviewer',
-    product: 'product manager',
-    hiring_manager: 'hiring manager',
-    behavioral: 'behavioural interviewer',
-    customer: 'customer',
-  };
-  const formattedRoles = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' })
-    .format(panelRoles.map((role) => roleNames[role]));
-  const paceGuidance = durationMinutes <= 2
-    ? 'Please keep each answer to about ten seconds so every panel member can speak.'
-    : 'Take the time you need to answer clearly.';
-  const greeting = demoMode
-    ? `Welcome to the RoundTable ten-minute showcase. Hiring manager here. ${DEMO_OPENING_QUESTION}`
-    : `Hi. This is a technical interview for the role of ${roleTitle} at ${companyName}. You are speaking with an AI interview panel: ${formattedRoles}. We will start with a brief introduction and background, then each interviewer will ask one focused question. This ${durationMinutes}-minute interview is reviewed by a human. ${paceGuidance} Please introduce yourself and share the experience most relevant to this role.`;
+  const openingQuestion = demoMode
+    ? DEMO_OPENING_QUESTION
+    : `Please introduce yourself and describe experience most relevant to the ${roleTitle} role.`;
   const instructions = `You are the voice executor for RoundTable's AI interview panel. The application-controlled custom LLM selects exactly one panel role and one question per turn. Speak its text faithfully, warmly, and concisely. Never claim to be human. Never make a hire or reject decision. Allow the candidate to interrupt naturally. When the candidate asks for a moment to think, acknowledge it calmly and do not advance the interview. Linear actions are controlled by the application: a comment is posted only after the application reads a preview and receives explicit candidate confirmation. Never invent a Linear result.`;
 
   const agent = new Agent({
     client,
     instructions,
-    greeting,
     failureMessage: 'I had trouble evaluating that answer. Could you give one concrete example with your own action and result?',
     maxHistory: 50,
     turnDetection: {
@@ -134,6 +116,7 @@ export async function startInterviewAgent({
       url: `${resolvePublicBaseUrl()}/api/ai/chat/completions`,
       model: 'roundtable-controller',
       systemMessages: [{ role: 'system', content: instructions }],
+      greetingMessage: openingQuestion,
     }))
     .withTts(createInterviewTts());
 

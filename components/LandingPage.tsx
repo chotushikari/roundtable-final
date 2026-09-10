@@ -17,6 +17,7 @@ import { QuickstartPreCallCard } from './QuickstartPreCallCard';
 import { RoundTableLoadingScreen } from './RoundTableLoadingScreen';
 import { InterviewPreparationScreen } from './InterviewPreparationScreen';
 import { Button } from './ui/button';
+import { PREPARATION_SECONDS } from '@/lib/interview-demo';
 
 // Dynamically import the ConversationComponent with ssr disabled
 const ConversationComponent = dynamic(() => import('./ConversationComponent'), {
@@ -192,7 +193,7 @@ export default function LandingPage({
         // does not consume any of the ten-minute showcase.
         const agentStartPromise = responseData.agentId
           ? Promise.resolve({ ok: true, data: { agentId: responseData.agentId } })
-          : new Promise((resolve) => window.setTimeout(resolve, 20_000)).then(() => fetch(`/api/sessions/${responseData.sessionId}/start`, { method: 'POST' }))
+          : new Promise((resolve) => window.setTimeout(resolve, PREPARATION_SECONDS * 1_000)).then(() => fetch(`/api/sessions/${responseData.sessionId}/start`, { method: 'POST' }))
             .then(async (response) => ({ ok: response.ok, data: await response.json() }));
         const { default: AgoraRTM } = await import('agora-rtm');
         const rtm: RTMClient = new AgoraRTM.RTM(
