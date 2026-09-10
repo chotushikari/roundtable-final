@@ -50,6 +50,16 @@ export const CandidateStageSchema = z.object({
   stage: z.enum(JOB_CANDIDATE_STAGES),
 });
 
+export const HUMAN_DECISIONS = ['advance', 'hold', 'decline', 'needs_review'] as const;
+export type HumanDecision = (typeof HUMAN_DECISIONS)[number];
+
+export const HumanDecisionCreateSchema = z.object({
+  decision: z.enum(HUMAN_DECISIONS),
+  rationale: z.string().trim().min(3).max(2_000),
+  sessionId: z.string().uuid().optional(),
+});
+export type HumanDecisionCreateInput = z.infer<typeof HumanDecisionCreateSchema>;
+
 // ─── DB Record Interfaces ─────────────────────────────────────────────────────
 
 export interface JobRecord {
@@ -101,4 +111,16 @@ export interface JobCandidateRecord {
 
 export interface JobCandidateWithCandidate extends JobCandidateRecord {
   candidate: CandidateRecord;
+}
+
+export interface HumanDecisionRecord {
+  id: string;
+  organizationId: string;
+  jobCandidateId: string;
+  sessionId: string | null;
+  decision: HumanDecision;
+  rationale: string;
+  decidedBy: string | null;
+  decidedAt: string;
+  createdAt: string;
 }

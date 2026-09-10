@@ -10,6 +10,8 @@ The optional camera interaction check requires a visible candidate consent actio
 
 Company reports require organization membership and are available only after completion. The report is an allow-listed projection rather than a database dump: it excludes controller cache, session events, credentials, raw media, and raw workspace content. All assessment claims remain transcript- or artifact-evidence-linked and retain `humanReviewRequired: true`.
 
+Only an authenticated organization member can create a `human_decisions` record. The route verifies the Job Candidate belongs to that organization and job, requires a short human rationale, records the authenticated recruiter as actor, and appends an audit event. AI assessment code has no write path to this table.
+
 `NEXT_PUBLIC_DISABLE_COMPANY_AUTH=true` is an explicit submission-only escape hatch. It makes the company dashboard and company report APIs public under one fixed demo organization while still using Supabase persistence. Never enable it for real candidate data, and remove it immediately after judging.
 
 

@@ -7,6 +7,8 @@ import type {
   JobCandidateRecord,
   JobCandidateWithCandidate,
   JobCompetencyRecord,
+  HumanDecisionCreateInput,
+  HumanDecisionRecord,
   JobCreateInput,
   JobRecord,
 } from '@/types/jobs';
@@ -18,6 +20,7 @@ type MemoryJobDatabase = {
   competencies: Map<string, JobCompetencyRecord>;
   candidates: Map<string, CandidateRecord>;
   jobCandidates: Map<string, JobCandidateRecord>;
+  humanDecisions: Map<string, HumanDecisionRecord>;
 };
 
 declare global {
@@ -31,6 +34,7 @@ function mem(): MemoryJobDatabase {
       competencies: new Map(),
       candidates: new Map(),
       jobCandidates: new Map(),
+      humanDecisions: new Map(),
     };
   }
   return globalThis.__roundtableJobDatabase;
@@ -103,6 +107,16 @@ function jobCandidateFromRow(row: Record<string, unknown>): JobCandidateRecord {
     source: row.source ? String(row.source) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+  };
+}
+
+function humanDecisionFromRow(row: Record<string, unknown>): HumanDecisionRecord {
+  return {
+    id: String(row.id), organizationId: String(row.organization_id), jobCandidateId: String(row.job_candidate_id),
+    sessionId: row.session_id ? String(row.session_id) : null,
+    decision: row.decision as HumanDecisionRecord['decision'], rationale: String(row.rationale ?? ''),
+    decidedBy: row.decided_by ? String(row.decided_by) : null,
+    decidedAt: String(row.decided_at), createdAt: String(row.created_at),
   };
 }
 
@@ -295,16 +309,27 @@ export const jobStore = {
       mem().candidates.set(record.id, record);
       return record;
     }
-    // Use DB upsert on (organization_id, email) unique constraint
+    // Email-based: check for existing candidate first, then insert or update.
+    // This is more reliable than onConflict against the partial unique index
+    // (candidates_org_email_notnull_idx), which PostgREST cannot resolve automatically.
     if (email) {
-      const { data, error } = await admin.from('candidates').upsert(
+      const { data: existing } = await admin.from('candidates')
+        .select('*').eq('organization_id', organizationId).eq('email', email).maybeSingle();
+      if (existing) {
+        const { data: updated, error: updateErr } = await admin.from('candidates')
+          .update({ full_name: fullName ?? (existing as Record<string, unknown>).full_name, updated_at: now() })
+          .eq('id', (existing as Record<string, unknown>).id as string)
+          .select('*').single();
+        throwDb(updateErr, 'update candidate');
+        return candidateFromRow(updated as Record<string, unknown>);
+      }
+      const { data, error } = await admin.from('candidates').insert(
         { id: randomUUID(), organization_id: organizationId, email, full_name: fullName },
-        { onConflict: 'organization_id,email', ignoreDuplicates: false },
       ).select('*').single();
-      throwDb(error, 'upsert candidate');
+      throwDb(error, 'insert candidate with email');
       return candidateFromRow(data as Record<string, unknown>);
     }
-    // No email — always insert
+    // No email — always insert a new candidate record
     const { data, error } = await admin.from('candidates').insert({
       id: randomUUID(), organization_id: organizationId, full_name: fullName, email: null,
     }).select('*').single();
@@ -392,5 +417,70 @@ export const jobStore = {
       .select('*').single();
     throwDb(error, 'update job candidate stage');
     return jobCandidateFromRow(data as Record<string, unknown>);
+  },
+
+  async listHumanDecisions(
+    jobCandidateId: string,
+    jobId: string,
+    organizationId: string,
+  ): Promise<HumanDecisionRecord[]> {
+    const jobCandidate = await this.getJobCandidate(jobCandidateId, jobId, organizationId);
+    if (!jobCandidate) throw new Error('Job candidate not found');
+    const admin = getSupabaseAdmin();
+    if (!admin) {
+      return [...mem().humanDecisions.values()]
+        .filter((item) => item.jobCandidateId === jobCandidateId)
+        .sort((a, b) => b.decidedAt.localeCompare(a.decidedAt));
+    }
+    const { data, error } = await admin.from('human_decisions').select('*')
+      .eq('job_candidate_id', jobCandidateId).eq('organization_id', organizationId)
+      .order('decided_at', { ascending: false });
+    throwDb(error, 'list human decisions');
+    return (data ?? []).map((row) => humanDecisionFromRow(row));
+  },
+
+  async createHumanDecision(
+    jobCandidateId: string,
+    jobId: string,
+    organizationId: string,
+    input: HumanDecisionCreateInput,
+    decidedBy?: string,
+  ): Promise<HumanDecisionRecord> {
+    const jobCandidate = await this.getJobCandidate(jobCandidateId, jobId, organizationId);
+    if (!jobCandidate) throw new Error('Job candidate not found');
+    const timestamp = now();
+    const record: HumanDecisionRecord = {
+      id: randomUUID(), organizationId, jobCandidateId, sessionId: input.sessionId ?? null,
+      decision: input.decision, rationale: input.rationale, decidedBy: decidedBy ?? null,
+      decidedAt: timestamp, createdAt: timestamp,
+    };
+    const admin = getSupabaseAdmin();
+    if (!admin) { mem().humanDecisions.set(record.id, record); return record; }
+    const { data, error } = await admin.from('human_decisions').insert({
+      id: record.id, organization_id: organizationId, job_candidate_id: jobCandidateId,
+      session_id: record.sessionId, decision: record.decision, rationale: record.rationale,
+      decided_by: record.decidedBy, decided_at: record.decidedAt,
+    }).select('*').single();
+    throwDb(error, 'create human decision');
+    const saved = humanDecisionFromRow(data as Record<string, unknown>);
+    const { error: auditError } = await admin.from('audit_logs').insert({
+      id: randomUUID(), organization_id: organizationId, actor_id: decidedBy ?? null,
+      action: 'human_decision.recorded', entity_type: 'job_candidate', entity_id: jobCandidateId,
+      metadata: { decision: saved.decision, sessionId: saved.sessionId },
+    });
+    throwDb(auditError, 'audit human decision');
+    return saved;
+  },
+
+  async getJobCandidate(id: string, jobId: string, organizationId: string): Promise<JobCandidateRecord | null> {
+    const admin = getSupabaseAdmin();
+    if (!admin) {
+      const record = mem().jobCandidates.get(id) ?? null;
+      return record && record.jobId === jobId && record.organizationId === organizationId ? record : null;
+    }
+    const { data, error } = await admin.from('job_candidates').select('*')
+      .eq('id', id).eq('job_id', jobId).eq('organization_id', organizationId).maybeSingle();
+    throwDb(error, 'get job candidate');
+    return data ? jobCandidateFromRow(data as Record<string, unknown>) : null;
   },
 };

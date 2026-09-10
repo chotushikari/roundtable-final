@@ -26,6 +26,7 @@ type Interview = { id: string; title: string; roleTitle: string; status: string;
 type SessionSummary = { id: string; status: string; health: string; startedAt: string; completedAt: string | null; interviewId: string };
 type Candidate = { id: string; fullName: string | null; email: string | null };
 type JobCandidate = { id: string; candidateId: string; stage: string; createdAt: string; candidate: Candidate };
+type HumanDecision = { id: string; decision: 'advance' | 'hold' | 'decline' | 'needs_review'; rationale: string; decidedAt: string };
 
 const employmentLabels: Record<string, string> = {
   full_time: 'Full-time', part_time: 'Part-time', internship: 'Internship',
@@ -70,6 +71,8 @@ export function CompanyDashboard() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [jobCandidates, setJobCandidates] = useState<JobCandidate[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [decisionHistory, setDecisionHistory] = useState<Record<string, HumanDecision[]>>({});
+  const [decisionRationales, setDecisionRationales] = useState<Record<string, string>>({});
 
   // ── Active tab inside job detail ─────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'competencies' | 'blueprint' | 'candidates' | 'pipeline'>('candidates');
@@ -147,7 +150,16 @@ export function CompanyDashboard() {
       ]);
       const [compData, candData, intData] = await Promise.all([compRes.json(), candRes.json(), intRes.json()]);
       if (compRes.ok) setCompetencies((compData as { competencies: Competency[] }).competencies ?? []);
-      if (candRes.ok) setJobCandidates((candData as { candidates: JobCandidate[] }).candidates ?? []);
+      if (candRes.ok) {
+        const candidates = (candData as { candidates: JobCandidate[] }).candidates ?? [];
+        setJobCandidates(candidates);
+        const histories = await Promise.all(candidates.map(async (candidate) => {
+          const response = await fetch(`/api/jobs/${jobId}/candidates/${candidate.id}/decisions`, { headers });
+          const data = await response.json() as { decisions?: HumanDecision[] };
+          return [candidate.id, response.ok ? data.decisions ?? [] : []] as const;
+        }));
+        setDecisionHistory(Object.fromEntries(histories));
+      }
       if (intRes.ok) {
         const allInterviews = (intData as { interviews: Interview[] }).interviews ?? [];
         setInterviews(allInterviews.filter((i) => i.jobId === jobId));
@@ -300,6 +312,31 @@ export function CompanyDashboard() {
       });
       setCandidateName(''); setCandidateEmail('');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not add candidate'); }
+    finally { setPendingAction(null); }
+  }
+
+  async function recordHumanDecision(jobCandidateId: string, decision: HumanDecision['decision']) {
+    if (!selectedJobId) return;
+    const rationale = decisionRationales[jobCandidateId]?.trim() ?? '';
+    if (rationale.length < 3) {
+      setMessage('Add a short human rationale before recording a decision.');
+      return;
+    }
+    setPendingAction(`decision:${jobCandidateId}`);
+    try {
+      const response = await fetch(`/api/jobs/${selectedJobId}/candidates/${jobCandidateId}/decisions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ decision, rationale }),
+      });
+      const data = await response.json() as { decision?: HumanDecision; error?: string };
+      if (!response.ok || !data.decision) throw new Error(data.error ?? 'Could not record human decision');
+      setDecisionHistory((previous) => ({
+        ...previous,
+        [jobCandidateId]: [data.decision!, ...(previous[jobCandidateId] ?? [])],
+      }));
+      setDecisionRationales((previous) => ({ ...previous, [jobCandidateId]: '' }));
+      setMessage('Human decision recorded. AI assessment remains advisory.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not record human decision'); }
     finally { setPendingAction(null); }
   }
 
@@ -688,6 +725,7 @@ export function CompanyDashboard() {
                     )}
                     {jobCandidates.map((jc) => {
                       const link = inviteLinks[jc.id];
+                      const latestDecision = decisionHistory[jc.id]?.[0];
                       return (
                         <div key={jc.id} className={styles.candidateCard}>
                           <div className={styles.candidateCardTop}>
@@ -696,6 +734,28 @@ export function CompanyDashboard() {
                               <span>{jc.candidate.email ?? 'No email'}</span>
                             </div>
                             <span className={`${styles.stageBadge} ${styles[stageColors[jc.stage] ?? '']}`}>{jc.stage.replace('_', ' ')}</span>
+                          </div>
+
+                          <div className={styles.decisionBox}>
+                            <div className={styles.decisionHead}>
+                              <span>Human decision</span>
+                              {latestDecision ? <small>{latestDecision.decision.replace('_', ' ')} · {new Date(latestDecision.decidedAt).toLocaleDateString()}</small> : <small>AI advises; people decide</small>}
+                            </div>
+                            {latestDecision && <p>{latestDecision.rationale}</p>}
+                            <textarea
+                              aria-label={`Decision rationale for ${jc.candidate.fullName ?? 'candidate'}`}
+                              value={decisionRationales[jc.id] ?? ''}
+                              onChange={(event) => setDecisionRationales((previous) => ({ ...previous, [jc.id]: event.target.value }))}
+                              placeholder="Record the evidence and rationale behind your decision…"
+                              rows={2}
+                            />
+                            <div className={styles.decisionActions}>
+                              {(['advance', 'hold', 'needs_review', 'decline'] as const).map((decision) => (
+                                <button key={decision} type="button" disabled={pendingAction === `decision:${jc.id}`} onClick={() => void recordHumanDecision(jc.id, decision)}>
+                                  {decision.replace('_', ' ')}
+                                </button>
+                              ))}
+                            </div>
                           </div>
 
                           {/* Resume attach */}

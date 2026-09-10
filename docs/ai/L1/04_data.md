@@ -4,6 +4,8 @@ Draft definitions are editable. Publishing creates immutable `interview_versions
 
 For a Job-scoped definition, plan generation reads the current `job_competencies` server-side. A complete hiring bar (at least three competencies) becomes the plan's normalized competency rubric, and the resulting plan is then copied into the immutable interview version at publication. Editing the Job later does not mutate an already published rubric.
 
+`human_decisions` is append-only recruiter-owned history for a job candidate. Every record has a required rationale, optional associated session, authenticated `decided_by` actor, and timestamp. It is not derived from an AI assessment; creation also writes a bounded `audit_logs` event.
+
 Resume files are private, delimited as untrusted claims, and may only seed verification questions. They are never assessment evidence. Completed code/canvas tasks reference the immutable `artifact_versions` row used by the final assessment; skipped workspace tasks create no artifact evidence. Schedule `purge_expired_interview_data()` daily to enforce 30-day deletion.
 
 Migration `202609060001_linear_mcp.sql` is retained as immutable database history. Its optional columns are no longer populated by the company dashboard or candidate voice controller.

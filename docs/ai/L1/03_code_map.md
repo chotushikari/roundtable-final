@@ -34,3 +34,5 @@
 - `app/api/jobs/[id]/competencies/route.ts`: list, upsert, and delete competencies.
 - `app/api/jobs/[id]/candidates/route.ts`: list job_candidates and add new candidates (email-deduped upsert).
 - `app/api/jobs/[id]/candidates/[candidateId]/route.ts`: patch a job_candidate stage.
+- `app/api/jobs/[id]/candidates/[candidateId]/decisions/route.ts`: recruiter-only append-only human-decision history and creation.
+- `lib/job-store.ts`: includes recruiter-owned human-decision persistence and audit logging alongside Job/Candidate storage.
