@@ -6,6 +6,7 @@
 - `lib/workspace-conversation.ts`: non-scoring voice workspace commands and checkpoint follow-ups.
 
 - `components/LandingPage.tsx`, `ConversationComponent.tsx`: candidate bootstrap and Agora lifecycle.
+- `components/InterviewPreparationScreen.tsx`: shared full-screen candidate setup surface used during bootstrap and RTC/panel readiness; it reports only truthful connection state.
 - `components/RoundTableExperience.tsx` and its CSS module: public scroll narrative, Three.js artifact, five-role labels, embedded compact Agora sample, and companion interaction.
 - `app/page.tsx`, `app/loading.tsx`: public experience entry point and reduced-motion-safe transition mark.
 - `components/CompanyDashboard.tsx`: Google-only interviewer auth, auto-provisioned private workspace, server-backed finale/adaptive interview builder, recruiter resume/link flow, candidate evidence review, and live/completed session pipeline.
