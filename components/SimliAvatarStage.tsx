@@ -49,6 +49,7 @@ export function SimliAvatarStage({ sessionId, role, state, audioTrack, interrupt
         simli.listenToMediastreamTrack(audioTrack.getMediaStreamTrack());
         await startPromise;
       } catch (error) {
+        console.warn('[SimliAvatar] visual session unavailable', error);
         if (!cancelled) { setStatus('fallback'); setDetail(error instanceof Error ? error.message : 'Voice interview continues without video'); }
       }
     })();
@@ -67,10 +68,10 @@ export function SimliAvatarStage({ sessionId, role, state, audioTrack, interrupt
 
   const isLive = status === 'live';
   return (
-    <section className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-[#2e4137] bg-[#101513] shadow-[0_30px_90px_rgba(0,0,0,.35)]" aria-label="AI interviewer video stage">
+    <section className="relative w-full max-w-4xl shrink-0 overflow-hidden rounded-3xl border border-[#2e4137] bg-[#101513] shadow-[0_30px_90px_rgba(0,0,0,.35)]" aria-label="AI interviewer video stage">
       <div className="flex items-center justify-between border-b border-[#26352e] bg-[#151d19] px-4 py-3">
         <div><p className="font-mono text-[9px] font-semibold uppercase tracking-[.18em] text-[#67d99c]">AI interviewer • disclosed</p><p className="mt-1 text-sm font-semibold text-[#f2f7f4]">{role.replaceAll('_', ' ')} perspective</p></div>
-        <span className={`rounded-full border px-3 py-1 font-mono text-[10px] ${isLive ? 'border-[#2d7654] bg-[#143a28] text-[#8bf0bc]' : 'border-[#3a403c] bg-[#1b211e] text-[#b8c1bb]'}`}>{isLive ? 'VIDEO LIVE' : 'VOICE LIVE'}</span>
+        <span className={`rounded-full border px-3 py-1 font-mono text-[10px] ${isLive ? 'border-[#2d7654] bg-[#143a28] text-[#8bf0bc]' : status === 'connecting' ? 'border-[#785f2c] bg-[#2b2515] text-[#f0ce7a]' : 'border-[#3a403c] bg-[#1b211e] text-[#b8c1bb]'}`}>{isLive ? 'VIDEO LIVE' : status === 'connecting' ? 'VIDEO CONNECTING' : 'VOICE FALLBACK'}</span>
       </div>
       <div className="relative grid min-h-[20rem] place-items-center bg-[radial-gradient(circle_at_50%_20%,rgba(62,207,142,.16),transparent_36%),linear-gradient(145deg,#17241e,#0d100f_65%)] p-5">
         <video
