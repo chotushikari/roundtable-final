@@ -637,20 +637,22 @@ export default function ConversationComponent({
   }, [agoraData.interviewEndsAt, agoraData.sessionId, serverDeadline, handleEndConversation]);
 
   useEffect(() => {
-    if (!demoProgress?.closing || autoEndTriggeredRef.current) return;
+    if (autoEndTriggeredRef.current) return;
     const closingDelivered = transcript.some((turn) => String(turn.uid) === agentUID
       && turn.status === TurnStatus.END
-      && String(turn.text).replace(/[^a-z]/gi, '').toLowerCase().includes(DEMO_CLOSING.replace(/[^a-z]/gi, '').toLowerCase()));
-    if (!closingDelivered || !['listening', 'idle', 'silent'].includes(agentState ?? '')) return;
-    // Wait for both the closing transcript and the end of agent speech.
-    // An interrupted closing stays open and can be repeated naturally.
+      && normalizeSpokenText(String(turn.text)).includes(normalizeSpokenText(DEMO_CLOSING)));
+    if (!closingDelivered) return;
+    // A completed closing transcript is the durable completion signal. Agora's
+    // final agent-state event can arrive late or remain on "thinking", so do not
+    // let that transient UI state block finalization. Leave a short audio buffer
+    // before stopping the session so the candidate hears the complete closing.
     const timer = window.setTimeout(() => {
       if (autoEndTriggeredRef.current) return;
       autoEndTriggeredRef.current = true;
       void handleEndConversation();
-    }, 1_000);
+    }, 1_500);
     return () => window.clearTimeout(timer);
-  }, [agentState, agentUID, demoProgress?.closing, handleEndConversation, transcript]);
+  }, [agentUID, handleEndConversation, transcript]);
 
   useEffect(() => {
     if (!compactDemo || autoEndTriggeredRef.current) return;

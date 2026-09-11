@@ -10,6 +10,8 @@ The code is derived from Agora's official `agent-quickstart-nextjs`, and the sou
 
 ## Architecture
 
+Demo completion uses the completed closing transcript as its durable browser signal. After a 1.5-second audio-playback buffer, the browser finalizes the interview without waiting for a potentially late final Agora agent-state event.
+
 ```text
 Candidate browser <-- Agora RTC/RTM --> one managed voice agent
                                            |
