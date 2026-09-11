@@ -111,7 +111,9 @@ export function ConversationErrorCard({ issue }: ConversationErrorCardProps) {
   const showNormalizedMessage = normalizedMessage !== issue.message;
   const cta = getCta(issue);
   const transportCode = String(issue.code);
-  const showRaw = issue.message !== normalizedMessage;
+  // Transport code 1000 is a generic engine wrapper. Always retain its raw
+  // provider payload so a TTS/ASR configuration issue can be diagnosed.
+  const showRaw = Boolean(issue.message);
 
   return (
     // Compact diagnostic card: headline for quick triage, optional CTA, raw payload for deeper debugging.

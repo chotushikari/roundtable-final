@@ -29,6 +29,7 @@ export function createInterviewTts(
     if (gradiumKey && gradiumVoiceId) {
       return new GradiumTTS({
         apiKey: gradiumKey,
+        url: process.env.GRADIUM_TTS_URL?.trim() || 'wss://api.gradium.ai/api/speech/tts',
         modelName: 'default',
         voiceId: gradiumVoiceId,
         sampleRate: 24_000,
