@@ -111,6 +111,7 @@ export function CompanyDashboard() {
 
   const [authReady, setAuthReady] = useState(!supabase);
   const [session, setSession] = useState<Session | null>(null);
+  const [googleDeliveryToken, setGoogleDeliveryToken] = useState<string | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
 
   // ── Jobs state ──────────────────────────────────────────────────────────────
@@ -175,8 +176,27 @@ export function CompanyDashboard() {
   // ─── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!supabase) return;
-    void supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true); });
-    const { data } = supabase.auth.onAuthStateChange((_e, next) => { setSession(next); setAuthReady(true); });
+    const cachedProviderToken = window.sessionStorage.getItem('roundtable.googleDeliveryToken');
+    if (cachedProviderToken) setGoogleDeliveryToken(cachedProviderToken);
+    void supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session?.provider_token) {
+        window.sessionStorage.setItem('roundtable.googleDeliveryToken', data.session.provider_token);
+        setGoogleDeliveryToken(data.session.provider_token);
+      }
+      setAuthReady(true);
+    });
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      setSession(next);
+      if (next?.provider_token) {
+        window.sessionStorage.setItem('roundtable.googleDeliveryToken', next.provider_token);
+        setGoogleDeliveryToken(next.provider_token);
+      } else if (event === 'SIGNED_OUT') {
+        window.sessionStorage.removeItem('roundtable.googleDeliveryToken');
+        setGoogleDeliveryToken(null);
+      }
+      setAuthReady(true);
+    });
     return () => data.subscription.unsubscribe();
   }, [supabase]);
 
@@ -582,7 +602,7 @@ export function CompanyDashboard() {
       setMessage('Add the candidate’s email before sending an invitation.');
       return;
     }
-    const providerToken = session?.provider_token;
+    const providerToken = googleDeliveryToken;
     if (!providerToken) {
       setMessage('Reconnect Google delivery to grant permission to send email from your account.');
       return;
@@ -618,7 +638,7 @@ export function CompanyDashboard() {
       setMessage('Add the candidate’s email before creating an interview event.');
       return;
     }
-    const providerToken = session?.provider_token;
+    const providerToken = googleDeliveryToken;
     if (!providerToken) {
       setMessage('Reconnect Google delivery to grant permission to create calendar events.');
       return;
@@ -1084,23 +1104,23 @@ export function CompanyDashboard() {
                               <div className={styles.inviteDelivery}>
                                 <div className={styles.deliveryCopy}>
                                   <span>Deliver invitation</span>
-                                  <small>{session?.provider_token ? 'Send directly from your connected Google account, or use a reviewable draft.' : 'Connect Google delivery once to enable direct email and calendar invitations.'}</small>
+                                  <small>{googleDeliveryToken ? 'Send directly from your connected Google account, or use a reviewable draft.' : 'Connect Google delivery once to enable direct email and calendar invitations.'}</small>
                                 </div>
                                 <div className={styles.deliveryActions}>
-                                  {session && !session.provider_token && (
+                                  {session && !googleDeliveryToken && (
                                     <Button size="sm" className={styles.connectGoogleButton} onClick={() => void connectGoogleDelivery()} disabled={pendingAction === 'google-delivery'}>
                                       {pendingAction === 'google-delivery' ? <LoaderCircle className={styles.spin} size={13}/> : <GoogleMark/>} Connect Google delivery
                                     </Button>
                                   )}
                                   <Button size="sm" className={styles.sendButton}
-                                    disabled={!jc.candidate.email || !session?.provider_token || pendingAction === `send:${jc.id}`}
-                                    title={session?.provider_token ? 'Send this personalised invitation now' : 'Connect Google delivery to send directly'}
+                                    disabled={!jc.candidate.email || !googleDeliveryToken || pendingAction === `send:${jc.id}`}
+                                    title={googleDeliveryToken ? 'Send this personalised invitation now' : 'Connect Google delivery to send directly'}
                                     onClick={() => void sendInvitationEmail(jc.id, jc.candidate, link)}>
                                     {pendingAction === `send:${jc.id}` ? <LoaderCircle className={styles.spin} size={13}/> : <Mail size={13}/>} Send invitation
                                   </Button>
                                   <Button size="sm" className={styles.sendButton}
-                                    disabled={!jc.candidate.email || !session?.provider_token || pendingAction === `calendar:${jc.id}`}
-                                    title={session?.provider_token ? 'Create and send a calendar invitation now' : 'Connect Google delivery to create calendar events'}
+                                    disabled={!jc.candidate.email || !googleDeliveryToken || pendingAction === `calendar:${jc.id}`}
+                                    title={googleDeliveryToken ? 'Create and send a calendar invitation now' : 'Connect Google delivery to create calendar events'}
                                     onClick={() => void createCalendarEvent(jc.id, jc.candidate, link)}>
                                     {pendingAction === `calendar:${jc.id}` ? <LoaderCircle className={styles.spin} size={13}/> : <CalendarDays size={13}/>} Send calendar invite
                                   </Button>
