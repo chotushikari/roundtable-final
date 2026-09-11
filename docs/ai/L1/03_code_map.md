@@ -16,7 +16,7 @@
 - `components/InterviewWorkspace.tsx`: Monaco, one embedded Excalidraw canvas, autosaved drafts, and checkpoints.
 - `app/api/interviews`, `invitations`, `sessions`: product and lifecycle APIs, including responsive background agent startup.
 - `app/api/ai/chat/completions`: authenticated Agora custom LLM boundary.
-- `app/api/ai/sarvam/tts`: retained authenticated Sarvam PCM bridge for compatibility; live interview agents use Agora's native Sarvam adapter instead.
+- `app/api/ai/sarvam/tts`: retained legacy authenticated Sarvam PCM bridge; live interview agents do not select it.
 - `app/api/mcp/[grant]`: session-scoped Streamable HTTP MCP endpoint.
 - `app/api/delivery/google`: authenticated recruiter delivery proxy; it forwards a transient Google provider token only for an explicit send-email or create-event action and returns a bounded provider error without logging the token.
 - `lib/interview-controller.ts`: evaluator validation and deterministic next-speaker rules.
@@ -24,7 +24,7 @@
 - `lib/interview-demo.ts`, `lib/interview-controller.ts`: five-role showcase coverage, evidence-prioritized role handoffs, opening/closing text, and answered-role progress.
 - `lib/interview-store.ts`: Supabase/in-memory persistence adapter.
 - `lib/agora-server.ts`: combined tokens and managed-agent start/stop, including opt-in Protoface `GenericAvatar` configuration.
-- `lib/interview-tts.ts`, `lib/public-url.ts`: Gradium-first, Sarvam-or-MiniMax TTS selection and public Agora callback origin resolution.
+- `lib/interview-tts.ts`, `lib/public-url.ts`: required Gradium TTS selection and public Agora callback origin resolution.
 - `lib/assessment.ts`: evidence-only final report combining validated transcript quotes with conservative completed-workspace artifact-version evidence.
 - `lib/company-report.ts`: stable company-facing completed-interview projection, including a bounded per-turn adaptation trail rather than private controller state.
 - `app/api/sessions/[id]/report`: company-authenticated report endpoint; only completed sessions return a report.

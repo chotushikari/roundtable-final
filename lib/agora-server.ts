@@ -145,10 +145,7 @@ export async function startInterviewAgent({
   console.info('[agora] interview agent starting', {
     sessionId,
     avatarEnabled: Boolean(avatar),
-    ttsProvider: process.env.GRADIUM_API_KEY?.trim()
-      && (process.env.GRADIUM_TTS_VOICE_ID?.trim() || process.env.GRADIUM_HIRING_MANAGER_VOICE_ID?.trim())
-      ? 'gradium'
-      : process.env.SARVAM_API_KEY?.trim() ? 'sarvam' : 'minimax',
+    ttsProvider: 'gradium',
   });
   if (avatar) {
     agent = agent.withAvatar(new GenericAvatar({
