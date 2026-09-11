@@ -42,4 +42,6 @@ export interface ConversationComponentProps {
   onEndConversation: () => void;
   compactDemo?: boolean;
   companionDemo?: boolean;
+  candidateName?: string;
+  panelRoleCount?: number;
 }

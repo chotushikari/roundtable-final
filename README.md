@@ -12,6 +12,8 @@ The code is derived from Agora's official `agent-quickstart-nextjs`, and the sou
 
 Demo completion uses the completed closing transcript as its durable browser signal. After a 1.5-second audio-playback buffer, the browser finalizes the interview without waiting for a potentially late final Agora agent-state event.
 
+The fixed fifteen-second candidate setup screen greets the candidate by the name already saved with their invitation, explains the panel-perspective count, and tells them to take their time. It is a visible setup message, not browser TTS; the Agora interviewer begins directly with the server-owned first question when the countdown ends.
+
 ```text
 Candidate browser <-- Agora RTC/RTM --> one managed voice agent
                                            |

@@ -478,6 +478,8 @@ export default function LandingPage({
                       onEndConversation={handleEndConversation}
                       compactDemo={embeddedDemo}
                       companionDemo={companionDemo}
+                      candidateName={candidateName}
+                      panelRoleCount={invitation?.panelRoles.length}
                     />
                   </AgoraProvider>
                 </ErrorBoundary>

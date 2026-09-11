@@ -6,6 +6,8 @@ type InterviewPreparationScreenProps = {
   roomReady?: boolean;
   onLeave?: () => void;
   overlay?: boolean;
+  candidateName?: string;
+  panelRoleCount?: number;
 };
 
 /** The single truthful cold-start surface shown before a candidate can speak. */
@@ -15,9 +17,12 @@ export function InterviewPreparationScreen({
   roomReady = false,
   onLeave,
   overlay = false,
+  candidateName,
+  panelRoleCount = 5,
 }: InterviewPreparationScreenProps) {
   const seconds = Math.max(0, secondsRemaining ?? 0);
   const stillConnecting = phase === 'connecting' && seconds === 0 && !roomReady;
+  const displayName = candidateName?.trim().replace(/\s+/g, ' ');
 
   return (
     <main className={`${overlay ? 'fixed inset-0 z-50' : 'relative min-h-dvh'} flex items-center justify-center overflow-hidden bg-[#0d0d0d] px-5 text-[#ededed] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_50%_0%,rgba(62,207,142,.14),transparent_34%),linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] before:bg-[size:auto,48px_48px,48px_48px]`}>
@@ -29,8 +34,8 @@ export function InterviewPreparationScreen({
             <span className="mt-1 block font-mono text-[10px] uppercase tracking-[.18em] text-[#8ab99e]">seconds</span>
           </div>
         </div>
-        <p className="mt-7 text-base font-semibold text-[#edf4ef]">Your AI Hiring Manager is getting ready.</p>
-        <p className="mt-2 text-sm leading-6 text-[#9caaa1]">Take a breath. When the countdown ends, your AI interviewer will begin with one focused question.</p>
+        <p className="mt-7 text-base font-semibold text-[#edf4ef]">{displayName ? `Hello, ${displayName}.` : 'Hello.'} Welcome to RoundTable AI.</p>
+        <p className="mt-2 text-sm leading-6 text-[#9caaa1]">You’ll meet {panelRoleCount} panel {panelRoleCount === 1 ? 'perspective' : 'perspectives'} in one shared interview. Take your time and answer naturally—your interviewer will begin when this countdown ends.</p>
         <p className="mt-4 text-xs leading-5 text-[#708178]">You are speaking with an AI panel. Your microphone stays off until the interview begins.</p>
         <div className="mt-6 flex items-center gap-2 text-xs text-[#a3b4aa]">
           <i className={`h-2 w-2 rounded-full ${roomReady ? 'bg-[#3ecf8e] shadow-[0_0_0_4px_rgba(62,207,142,.12)]' : 'bg-[#d5a44c]'}`} />

@@ -100,6 +100,8 @@ export default function ConversationComponent({
   onEndConversation,
   compactDemo = false,
   companionDemo = false,
+  candidateName,
+  panelRoleCount,
 }: ConversationComponentProps) {
   const agentUID = String(DEFAULT_AGENT_UID);
 
@@ -677,7 +679,7 @@ export default function ConversationComponent({
   // the real connection state in the interview surface while it joins.
   const preparationComplete = preparationSeconds >= PREPARATION_SECONDS;
   const preparationOverlay = !compactDemo && !companionDemo && !preparationComplete
-    ? <InterviewPreparationScreen phase="connecting" secondsRemaining={Math.max(0, PREPARATION_SECONDS - preparationSeconds)} roomReady={roomReady} onLeave={handleEndConversation} overlay />
+    ? <InterviewPreparationScreen phase="connecting" secondsRemaining={Math.max(0, PREPARATION_SECONDS - preparationSeconds)} roomReady={roomReady} onLeave={handleEndConversation} candidateName={candidateName} panelRoleCount={panelRoleCount} overlay />
     : null;
 
   if (compactDemo) {
