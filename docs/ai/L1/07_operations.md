@@ -8,6 +8,8 @@ The visual interviewer stage defaults to a bundled local host visual. To enable 
 
 On Vercel, `VERCEL_PROJECT_PRODUCTION_URL` (falling back to `VERCEL_URL`) takes precedence for Agora callbacks and invitation links. This prevents a local or expired tunnel copied through `APP_BASE_URL` from breaking production. Enable only Google in Supabase Authentication, configure its Google OAuth client, and allow the deployed `/company` plus `/company/analysis/**` application redirect URLs.
 
+Direct recruiter delivery is opt-in. In the Google Cloud OAuth consent screen and the Supabase Google provider, approve `https://www.googleapis.com/auth/gmail.send` and `https://www.googleapis.com/auth/calendar.events`. Recruiters reconnect through **Connect Google delivery**, then explicitly click either delivery action. Google issues the browser provider token; RoundTable must not persist or relay it through an application API.
+
 For a time-limited public submission, `NEXT_PUBLIC_DISABLE_COMPANY_AUTH=true` bypasses the company email gate without switching to process-local storage. The server creates or reuses `PUBLIC_DEMO_ORGANIZATION_ID` (or the fixed demo UUID). This deliberately exposes that organization's company dashboard and completed reports; unset the flag after judging.
 
 Set `ENABLE_HOMEPAGE_VOICE_DEMO=true` on Vercel only when the public one-question sample should be available. The sample uses Agora reseller STT/LLM and the shared Sarvam-or-MiniMax TTS selector through the original token/start/stop boundary; it has no Supabase interview record. Keep it false when the homepage should remain visual-only.

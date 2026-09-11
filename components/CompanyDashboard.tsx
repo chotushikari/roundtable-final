@@ -86,6 +86,13 @@ function googleCalendarDate(date: Date) {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 }
 
+function encodeGmailMessage(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 function GoogleMark() {
   return <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.googleMark}><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.42l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.6 0-4.81-1.76-5.6-4.13H3.06v2.62A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.87A6 6 0 0 1 6.1 12c0-.65.11-1.28.3-1.87V7.51H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.49l3.34-2.62Z"/><path fill="#EA4335" d="M12 6c1.47 0 2.78.5 3.82 1.49l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.94 5.51l3.34 2.62C7.19 7.76 9.4 6 12 6Z"/></svg>;
 }
@@ -255,7 +262,22 @@ export function CompanyDashboard() {
     if (!supabase) return;
     setPendingAction('google'); setMessage('Opening Google sign in…');
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google', options: { redirectTo: `${window.location.origin}/company` },
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/company` },
+    });
+    if (error) { setMessage(error.message); setPendingAction(null); }
+  }
+
+  async function connectGoogleDelivery() {
+    if (!supabase) return;
+    setPendingAction('google-delivery'); setMessage('Requesting Google delivery permission…');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/company`,
+        scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events',
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
     });
     if (error) { setMessage(error.message); setPendingAction(null); }
   }
@@ -553,6 +575,86 @@ export function CompanyDashboard() {
     });
     window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank', 'noopener,noreferrer');
     setMessage('Opened a Google Calendar event with the candidate and secure interview link prefilled.');
+  }
+
+  async function sendInvitationEmail(jcId: string, candidateData: Candidate, link: string) {
+    if (!candidateData.email) {
+      setMessage('Add the candidate’s email before sending an invitation.');
+      return;
+    }
+    const providerToken = session?.provider_token;
+    if (!providerToken) {
+      setMessage('Reconnect Google delivery to grant permission to send email from your account.');
+      return;
+    }
+    setPendingAction(`send:${jcId}`);
+    try {
+      const { subject, body } = invitationMessage(candidateData, link);
+      const raw = [
+        `To: ${candidateData.email}`,
+        `Subject: ${subject}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        '',
+        body,
+      ].join('\r\n');
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${providerToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw: encodeGmailMessage(raw) }),
+      });
+      const result = await response.json() as { error?: { message?: string } };
+      if (!response.ok) throw new Error(result.error?.message ?? 'Google could not send the invitation.');
+      setMessage(`Invitation sent to ${candidateData.email}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not send the invitation.');
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function createCalendarEvent(jcId: string, candidateData: Candidate, link: string) {
+    if (!candidateData.email) {
+      setMessage('Add the candidate’s email before creating an interview event.');
+      return;
+    }
+    const providerToken = session?.provider_token;
+    if (!providerToken) {
+      setMessage('Reconnect Google delivery to grant permission to create calendar events.');
+      return;
+    }
+    const rawStart = invitationSchedules[jcId]?.startsAt;
+    const start = rawStart ? new Date(rawStart) : new Date(Date.now() + 86_400_000);
+    if (Number.isNaN(start.getTime())) {
+      setMessage('Choose a valid interview time before creating the calendar event.');
+      return;
+    }
+    const end = new Date(start.getTime() + Math.max((interviews[0]?.durationMinutes ?? 30), 30) * 60_000);
+    const role = selectedJob?.title || interviews[0]?.roleTitle || 'RoundTable interview';
+    const { body } = invitationMessage(candidateData, link);
+    setPendingAction(`calendar:${jcId}`);
+    try {
+      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${providerToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summary: `RoundTable interview / ${role}`,
+          description: body,
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() },
+          attendees: [{ email: candidateData.email }],
+          guestsCanModify: false,
+          guestsCanInviteOthers: false,
+        }),
+      });
+      const result = await response.json() as { error?: { message?: string } };
+      if (!response.ok) throw new Error(result.error?.message ?? 'Google could not create the calendar event.');
+      setMessage(`Calendar invitation created and sent to ${candidateData.email}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not create the calendar event.');
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   // ─── Auth screens ────────────────────────────────────────────────────────────
@@ -981,21 +1083,38 @@ export function CompanyDashboard() {
                               </div>
                               <div className={styles.inviteDelivery}>
                                 <div className={styles.deliveryCopy}>
-                                  <span>Send professionally</span>
-                                  <small>Uses your signed-in Google workspace. Nothing is sent until you review it.</small>
+                                  <span>Deliver invitation</span>
+                                  <small>{session?.provider_token ? 'Send directly from your connected Google account, or use a reviewable draft.' : 'Connect Google delivery once to enable direct email and calendar invitations.'}</small>
                                 </div>
                                 <div className={styles.deliveryActions}>
+                                  {session && !session.provider_token && (
+                                    <Button size="sm" className={styles.connectGoogleButton} onClick={() => void connectGoogleDelivery()} disabled={pendingAction === 'google-delivery'}>
+                                      {pendingAction === 'google-delivery' ? <LoaderCircle className={styles.spin} size={13}/> : <GoogleMark/>} Connect Google delivery
+                                    </Button>
+                                  )}
+                                  <Button size="sm" className={styles.sendButton}
+                                    disabled={!jc.candidate.email || !session?.provider_token || pendingAction === `send:${jc.id}`}
+                                    title={session?.provider_token ? 'Send this personalised invitation now' : 'Connect Google delivery to send directly'}
+                                    onClick={() => void sendInvitationEmail(jc.id, jc.candidate, link)}>
+                                    {pendingAction === `send:${jc.id}` ? <LoaderCircle className={styles.spin} size={13}/> : <Mail size={13}/>} Send invitation
+                                  </Button>
+                                  <Button size="sm" className={styles.sendButton}
+                                    disabled={!jc.candidate.email || !session?.provider_token || pendingAction === `calendar:${jc.id}`}
+                                    title={session?.provider_token ? 'Create and send a calendar invitation now' : 'Connect Google delivery to create calendar events'}
+                                    onClick={() => void createCalendarEvent(jc.id, jc.candidate, link)}>
+                                    {pendingAction === `calendar:${jc.id}` ? <LoaderCircle className={styles.spin} size={13}/> : <CalendarDays size={13}/>} Send calendar invite
+                                  </Button>
                                   <Button size="sm" variant="outline" className={styles.gmailButton}
                                     disabled={!jc.candidate.email}
-                                    title={jc.candidate.email ? 'Open a personalised Gmail draft' : 'Add an email address to send an invitation'}
+                                    title={jc.candidate.email ? 'Open a personalised email draft for review' : 'Add an email address to send an invitation'}
                                     onClick={() => openGmailDraft(jc.candidate, link)}>
-                                    <Mail size={13}/> Open Gmail draft
+                                    <Mail size={13}/> Review draft
                                   </Button>
                                   <Button size="sm" variant="outline" className={styles.calendarButton}
                                     disabled={!jc.candidate.email}
-                                    title={jc.candidate.email ? 'Open a Google Calendar invitation' : 'Add an email address to schedule an invitation'}
+                                    title={jc.candidate.email ? 'Open a calendar event for review' : 'Add an email address to schedule an invitation'}
                                     onClick={() => openCalendarHold(jc.id, jc.candidate, link)}>
-                                    <CalendarDays size={13}/> Add calendar hold
+                                    <CalendarDays size={13}/> Review calendar
                                   </Button>
                                 </div>
                               </div>
