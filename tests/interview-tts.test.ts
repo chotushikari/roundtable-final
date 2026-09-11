@@ -2,19 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInterviewTts } from '@/lib/interview-tts';
 
-test('Sarvam Shubh uses the authenticated Bulbul v3 PCM bridge when configured', () => {
-  assert.deepEqual(createInterviewTts('test-sarvam-key', 'https://example.com/').toConfig(), {
-    vendor: 'generic_http',
-    url: 'https://example.com/api/ai/sarvam/tts',
-    headers: {
-      Authorization: 'Bearer test-sarvam-key',
-    },
+test('Sarvam uses Agora’s supported native adapter when configured', () => {
+  assert.deepEqual(createInterviewTts('test-sarvam-key', 'anushka').toConfig(), {
+    vendor: 'sarvam',
     params: {
-      model: 'bulbul:v3',
-      voice: 'shubh',
-      speed: 1,
+      api_subscription_key: 'test-sarvam-key',
+      speaker: 'anushka',
+      target_language_code: 'en-IN',
       sample_rate: 24000,
-      response_format: 'pcm',
+      pace: 1,
     },
   });
 });

@@ -1,5 +1,4 @@
-import { GenericTTS, MiniMaxTTS } from 'agora-agents';
-import { resolvePublicBaseUrl } from '@/lib/public-url';
+import { MiniMaxTTS, SarvamTTS } from 'agora-agents';
 
 const MINIMAX_FALLBACK = {
   model: 'speech_2_6_turbo',
@@ -7,25 +6,26 @@ const MINIMAX_FALLBACK = {
 } as const;
 
 /**
- * Prefer Sarvam Bulbul v3 for Indian-English interview delivery when it is configured.
- * Agora's managed Sarvam adapter does not support the Bulbul v3-only `shubh`
- * speaker, so Agora calls our authenticated PCM bridge instead.
- * MiniMax remains the safe startup fallback for environments without a Sarvam key.
+ * Prefer Agora's native Sarvam adapter when it is configured. This is the
+ * supported ConvoAI integration and avoids making a live agent depend on a
+ * callback through the application's serverless runtime.
+ *
+ * `shubh` is a Bulbul v3 API voice but is not in Agora's currently supported
+ * Sarvam voice list. Use the supported `anushka` delivery voice for a reliable
+ * live interview; MiniMax remains the no-key startup fallback.
  */
 export function createInterviewTts(
   sarvamApiKey = process.env.SARVAM_API_KEY,
-  publicBaseUrl = resolvePublicBaseUrl(),
+  speaker = process.env.SARVAM_TTS_VOICE?.trim() || 'anushka',
 ) {
   const key = sarvamApiKey?.trim();
   if (key) {
-    return new GenericTTS({
-      url: `${publicBaseUrl.replace(/\/$/, '')}/api/ai/sarvam/tts`,
-      headers: { Authorization: `Bearer ${key}` },
-      model: 'bulbul:v3',
-      voice: 'shubh',
-      speed: 1,
+    return new SarvamTTS({
+      key,
+      speaker,
+      targetLanguageCode: 'en-IN',
       sampleRate: 24_000,
-      responseFormat: 'pcm',
+      pace: 1,
     });
   }
 

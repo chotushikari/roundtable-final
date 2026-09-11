@@ -3,7 +3,7 @@ import type { PanelRole, TurnAnalysisRecord } from '@/types/interview';
 export const DEMO_DURATION_MINUTES = 10;
 export const PREPARATION_SECONDS = 15;
 export const DEMO_ROLES: PanelRole[] = ['hiring_manager', 'technical', 'product', 'customer', 'behavioral'];
-export const DEMO_OPENING_QUESTION = 'Briefly introduce yourself and tell us about one project you built.';
+export const DEMO_OPENING_QUESTION = 'Welcome to RoundTable. I’m your AI Hiring Manager. Briefly introduce yourself and tell us about one project you built.';
 export const DEMO_CLOSING = 'Thank you. That completes our panel demo. Your evidence summary is next, for human review.';
 
 export function normalizeSpokenText(text: string): string {

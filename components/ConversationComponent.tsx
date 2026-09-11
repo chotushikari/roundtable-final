@@ -515,7 +515,7 @@ export default function ConversationComponent({
   useEffect(() => {
     if (compactDemo || companionDemo) return;
     const startedAt = Date.now();
-    const tick = () => setPreparationSeconds(Math.min(20, Math.floor((Date.now() - startedAt) / 1_000)));
+    const tick = () => setPreparationSeconds(Math.min(PREPARATION_SECONDS, Math.floor((Date.now() - startedAt) / 1_000)));
     tick();
     const timer = window.setInterval(tick, 250);
     return () => window.clearInterval(timer);

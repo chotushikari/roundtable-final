@@ -59,6 +59,10 @@ function resolveAgoraArea(): AgoraArea {
 }
 
 function getProtofaceAvatarConfig(): { apiKey: string; avatarId: string; apiBaseUrl: string } | null {
+  // The avatar publisher is a progressive enhancement. Keep it opt-in until
+  // the provider has been validated for this Agora project; voice must never
+  // depend on a third-party visual track.
+  if (process.env.ENABLE_PROTOFACE_AVATAR !== 'true') return null;
   const apiKey = process.env.PROTOFACE_API_KEY?.trim();
   const avatarId = process.env.PROTOFACE_AVATAR_ID?.trim();
   if (!apiKey || !avatarId) return null;
@@ -138,6 +142,11 @@ export async function startInterviewAgent({
   // publishes an actual talking-avatar video track into this same RTC channel.
   // The voice agent, controller, transcript, and assessment remain unchanged.
   const avatar = getProtofaceAvatarConfig();
+  console.info('[agora] interview agent starting', {
+    sessionId,
+    avatarEnabled: Boolean(avatar),
+    ttsProvider: process.env.SARVAM_API_KEY?.trim() ? 'sarvam' : 'minimax',
+  });
   if (avatar) {
     agent = agent.withAvatar(new GenericAvatar({
       apiKey: avatar.apiKey,

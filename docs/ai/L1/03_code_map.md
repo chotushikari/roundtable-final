@@ -16,7 +16,7 @@
 - `components/InterviewWorkspace.tsx`: Monaco, one embedded Excalidraw canvas, autosaved drafts, and checkpoints.
 - `app/api/interviews`, `invitations`, `sessions`: product and lifecycle APIs, including responsive background agent startup.
 - `app/api/ai/chat/completions`: authenticated Agora custom LLM boundary.
-- `app/api/ai/sarvam/tts`: authenticated internal Sarvam Bulbul v3 `shubh` to 24 kHz PCM bridge for Agora GenericTTS.
+- `app/api/ai/sarvam/tts`: retained authenticated Sarvam PCM bridge for compatibility; live interview agents use Agora's native Sarvam adapter instead.
 - `app/api/mcp/[grant]`: session-scoped Streamable HTTP MCP endpoint.
 - `lib/interview-controller.ts`: evaluator validation and deterministic next-speaker rules.
 - `app/api/interviews/[id]/plan`, `lib/interview-planner.ts`: server-loaded Job hiring-bar execution, immutable blueprint rubric generation, and adaptive interview scenarios.
