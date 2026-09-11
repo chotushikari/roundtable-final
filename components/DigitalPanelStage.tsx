@@ -1,11 +1,13 @@
 'use client';
 
 import Image from 'next/image';
+import { useEffect, useRef, useState } from 'react';
 
 type DigitalPanelStageProps = {
   role: string;
   state: string | null;
   currentUtterance?: string;
+  avatarVideoTrack?: { play: (element: string | HTMLElement) => void };
 };
 
 type RoleProfile = {
@@ -63,9 +65,25 @@ function activity(state: string | null) {
  * live video or lip-synced media: Agora audio and server-owned interview state
  * remain the authoritative experience.
  */
-export function DigitalPanelStage({ role, state, currentUtterance }: DigitalPanelStageProps) {
+export function DigitalPanelStage({ role, state, currentUtterance, avatarVideoTrack }: DigitalPanelStageProps) {
   const profile = ROLES[role] ?? ROLES.technical;
   const status = activity(state);
+  const avatarMountRef = useRef<HTMLDivElement>(null);
+  const [hasLiveAvatar, setHasLiveAvatar] = useState(false);
+
+  useEffect(() => {
+    const mount = avatarMountRef.current;
+    if (!avatarVideoTrack || !mount) {
+      setHasLiveAvatar(false);
+      return;
+    }
+    try {
+      avatarVideoTrack.play(mount);
+      setHasLiveAvatar(true);
+    } catch {
+      setHasLiveAvatar(false);
+    }
+  }, [avatarVideoTrack]);
 
   return (
     <section className="w-full max-w-5xl overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#101411] shadow-[0_28px_100px_rgba(0,0,0,.42)]" aria-label="RoundTable AI panel stage">
@@ -88,12 +106,13 @@ export function DigitalPanelStage({ role, state, currentUtterance }: DigitalPane
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 68vw"
-            className="object-cover object-center"
+            className={`object-cover object-center transition-opacity duration-500 ${hasLiveAvatar ? 'opacity-0' : 'opacity-100'}`}
           />
+          <div ref={avatarMountRef} className={`absolute inset-0 [&_video]:h-full [&_video]:w-full [&_video]:object-cover ${hasLiveAvatar ? 'opacity-100' : 'pointer-events-none opacity-0'}`} aria-label={hasLiveAvatar ? 'Live AI avatar video' : undefined} />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,8,6,.38),transparent_45%,rgba(4,8,6,.16)),linear-gradient(0deg,rgba(4,8,6,.78),transparent_48%)]" />
           <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-3 sm:inset-x-5 sm:bottom-5">
             <div className="max-w-[78%] rounded-2xl border border-white/15 bg-[#0a0e0c]/80 px-3.5 py-2.5 backdrop-blur-md">
-              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-emerald-200">Current perspective</p>
+              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-emerald-200">{hasLiveAvatar ? 'Live AI avatar · disclosed' : 'Current perspective'}</p>
               <p className={`mt-1 text-sm font-semibold ${profile.color}`}>{profile.lens}</p>
             </div>
             <div className="flex h-10 items-end gap-1 rounded-xl border border-white/10 bg-black/35 px-2.5 py-2 backdrop-blur-md" aria-hidden="true">

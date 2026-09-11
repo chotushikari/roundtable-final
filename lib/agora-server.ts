@@ -8,8 +8,9 @@ import {
   CustomLLM,
   DeepgramSTT,
   ExpiresIn,
+  GenericAvatar,
 } from 'agora-agents';
-import { DEFAULT_AGENT_UID } from '@/lib/agora';
+import { DEFAULT_AGENT_UID, DEFAULT_AVATAR_UID } from '@/lib/agora';
 import { DEMO_OPENING_QUESTION } from '@/lib/interview-demo';
 import { createInterviewTts } from '@/lib/interview-tts';
 import { resolvePublicBaseUrl } from '@/lib/public-url';
@@ -57,6 +58,17 @@ function resolveAgoraArea(): AgoraArea {
   return Area.US;
 }
 
+function getProtofaceAvatarConfig(): { apiKey: string; avatarId: string; apiBaseUrl: string } | null {
+  const apiKey = process.env.PROTOFACE_API_KEY?.trim();
+  const avatarId = process.env.PROTOFACE_AVATAR_ID?.trim();
+  if (!apiKey || !avatarId) return null;
+  return {
+    apiKey,
+    avatarId,
+    apiBaseUrl: (process.env.PROTOFACE_AGORA_BASE_URL?.trim() || 'https://api.protoface.com/v1/agora/').replace(/\/+$/, ''),
+  };
+}
+
 export async function startInterviewAgent({
   sessionId,
   channel,
@@ -84,7 +96,7 @@ export async function startInterviewAgent({
     : `Please introduce yourself and describe experience most relevant to the ${roleTitle} role.`;
   const instructions = `You are the voice executor for RoundTable's AI interview panel. The application-controlled custom LLM selects exactly one panel role and one question per turn. Speak its text faithfully, warmly, and concisely. Never claim to be human. Never make a hire or reject decision. Allow the candidate to interrupt naturally. When the candidate asks for a moment to think, acknowledge it calmly and do not advance the interview. Linear actions are controlled by the application: a comment is posted only after the application reads a preview and receives explicit candidate confirmation. Never invent a Linear result.`;
 
-  const agent = new Agent({
+  let agent = new Agent({
     client,
     instructions,
     failureMessage: 'I had trouble evaluating that answer. Could you give one concrete example with your own action and result?',
@@ -119,6 +131,19 @@ export async function startInterviewAgent({
       greetingMessage: openingQuestion,
     }))
     .withTts(createInterviewTts());
+
+  // Protoface implements Agora's GenericAvatar contract. When configured it
+  // publishes an actual talking-avatar video track into this same RTC channel.
+  // The voice agent, controller, transcript, and assessment remain unchanged.
+  const avatar = getProtofaceAvatarConfig();
+  if (avatar) {
+    agent = agent.withAvatar(new GenericAvatar({
+      apiKey: avatar.apiKey,
+      apiBaseUrl: avatar.apiBaseUrl,
+      avatarId: avatar.avatarId,
+      agoraUid: String(DEFAULT_AVATAR_UID),
+    }));
+  }
 
   const session = agent.createSession({
     channel,

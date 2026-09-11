@@ -6,7 +6,7 @@
 - `lib/workspace-conversation.ts`: non-scoring voice workspace commands and checkpoint follow-ups.
 
 - `components/LandingPage.tsx`, `ConversationComponent.tsx`: candidate bootstrap and Agora lifecycle.
-- `components/DigitalPanelStage.tsx`: local disclosed AI-host stage with active panel role, agent state, shared-context panel map, and no external visual-media dependency.
+- `components/DigitalPanelStage.tsx`: disclosed AI-host stage with active panel role, agent state, shared-context panel map, and either a mounted Generic Avatar RTC video track or bundled visual fallback.
 - `components/InterviewPreparationScreen.tsx`: shared full-screen candidate setup surface used during bootstrap and RTC/panel readiness; it reports only truthful connection state.
 - `components/RoundTableExperience.tsx` and its CSS module: public scroll narrative, Three.js artifact, five-role labels, embedded compact Agora sample, and companion interaction.
 - `app/page.tsx`, `app/loading.tsx`: public experience entry point and reduced-motion-safe transition mark.
@@ -22,7 +22,7 @@
 - `app/api/interviews/[id]/plan`, `lib/interview-planner.ts`: server-loaded Job hiring-bar execution, immutable blueprint rubric generation, and adaptive interview scenarios.
 - `lib/interview-demo.ts`, `lib/interview-controller.ts`: five-role showcase coverage, evidence-prioritized role handoffs, opening/closing text, and answered-role progress.
 - `lib/interview-store.ts`: Supabase/in-memory persistence adapter.
-- `lib/agora-server.ts`: combined tokens and managed-agent start/stop.
+- `lib/agora-server.ts`: combined tokens and managed-agent start/stop, including opt-in Protoface `GenericAvatar` configuration.
 - `lib/interview-tts.ts`, `lib/public-url.ts`: Sarvam-or-MiniMax TTS selection and public Agora callback origin resolution.
 - `lib/assessment.ts`: evidence-only final report combining validated transcript quotes with conservative completed-workspace artifact-version evidence.
 - `lib/company-report.ts`: stable company-facing completed-interview projection, including a bounded per-turn adaptation trail rather than private controller state.

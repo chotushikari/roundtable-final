@@ -1,12 +1,17 @@
 import coreWebVitals from 'eslint-config-next/core-web-vitals';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 /** @type {import('eslint').Linter.Config[]} */
 const config = [
+  {
+    ignores: ['.agents/**'],
+  },
   ...coreWebVitals,
   {
     plugins: {
       '@typescript-eslint': tseslint.plugin,
+      'react-hooks': reactHooks,
     },
     rules: {
       // These patterns — syncing external SDK state into React state inside useEffect — are

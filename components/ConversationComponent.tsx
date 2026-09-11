@@ -23,7 +23,7 @@ import {
   type AgentTranscription,
 } from 'agora-agent-client-toolkit';
 import { MicButtonWithVisualizer } from './MicButtonWithVisualizer';
-import { DEFAULT_AGENT_UID } from '@/lib/agora';
+import { DEFAULT_AGENT_UID, DEFAULT_AVATAR_UID } from '@/lib/agora';
 import {
   getCurrentInProgressMessage,
   getMessageList,
@@ -166,7 +166,6 @@ export default function ConversationComponent({
   >([]);
   const [agentState, setAgentState] = useState<AgentState | null>(null);
   const [agentMetrics, setAgentMetrics] = useState<QuickstartAgentMetric[]>([]);
-  const [interruptionVersion, setInterruptionVersion] = useState(0);
   const [connectionIssues, setConnectionIssues] = useState<ConnectionIssue[]>(
     [],
   );
@@ -297,7 +296,6 @@ export default function ConversationComponent({
         ai.on(AgoraVoiceAIEvents.AGENT_INTERRUPTED, (_, event) => {
           if (interruptedTurnIdsRef.current.has(event.turnID)) return;
           interruptedTurnIdsRef.current.add(event.turnID);
-          setInterruptionVersion((version) => version + 1);
           logEvent('INTERRUPTED', { turnId: event.turnID });
         });
         ai.on(AgoraVoiceAIEvents.AGENT_METRICS, (_, metrics) => {
@@ -535,6 +533,15 @@ export default function ConversationComponent({
       }
     });
   }, [remoteUsers]);
+
+  // The Generic Avatar is a separate RTC publisher. Subscribe explicitly to
+  // its video track so `DigitalPanelStage` can mount the real video rather
+  // than falling back to the local disclosed host visual.
+  useEffect(() => {
+    const avatar = remoteUsers.find((user) => String(user.uid) === String(DEFAULT_AVATAR_UID));
+    if (!avatar || !avatar.hasVideo || avatar.videoTrack) return;
+    void client.subscribe(avatar, 'video').catch(() => {});
+  }, [client, remoteUsers]);
 
   useClientEvent(client, 'connection-state-change', (curState) => {
     setConnectionState(curState);
@@ -774,6 +781,7 @@ export default function ConversationComponent({
             role={activeRole}
             state={visualizerState}
             currentUtterance={currentInProgressMessage ? String(currentInProgressMessage.text) : undefined}
+            avatarVideoTrack={remoteUsers.find((user) => String(user.uid) === String(DEFAULT_AVATAR_UID))?.videoTrack}
           />
           {remoteUsers.map((user) => (
             <div key={user.uid} className="hidden">
