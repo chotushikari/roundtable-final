@@ -77,6 +77,10 @@ const interviewTemplates = {
 } as const;
 const focusOptions = ['System design', 'Caching & performance', 'Customer impact', 'Ownership', 'API design', 'Data modelling'];
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character);
+}
+
 function localDateTimeValue(date: Date) {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
@@ -161,6 +165,7 @@ export function CompanyDashboard() {
 
   // ── UI feedback ──────────────────────────────────────────────────────────────
   const [message, setMessage] = useState('');
+  const [deliveryActivity, setDeliveryActivity] = useState<{ label: string; detail: string; kind: 'email' | 'calendar' } | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const accessToken = session?.access_token;
@@ -531,7 +536,7 @@ export function CompanyDashboard() {
     const recruiterName = String(profileName).trim() || 'the RoundTable team';
     const role = selectedJob?.title || interviews[0]?.roleTitle || 'the role';
     const mode = interviews[0]?.demoMode ? 'a focused 10-minute, five-perspective interview' : 'an adaptive interview panel';
-    const subject = `Your RoundTable interview for ${role}`;
+    const subject = `Invitation: ${role} interview with ${recruiterName}`;
     const body = [
       `Hi ${candidateName},`,
       '',
@@ -551,7 +556,12 @@ export function CompanyDashboard() {
       recruiterName,
       'RoundTable AI',
     ].join('\n');
-    return { subject, body };
+    const safeName = escapeHtml(candidateName);
+    const safeRole = escapeHtml(role);
+    const safeRecruiter = escapeHtml(recruiterName);
+    const safeLink = escapeHtml(link);
+    const html = `<!doctype html><html><body style="margin:0;background:#f4f7f5;color:#18231d;font-family:Inter,Arial,sans-serif"><div style="max-width:620px;margin:0 auto;padding:36px 20px"><div style="padding:24px 28px;border-radius:20px 20px 0 0;background:#10251a;color:#fff"><div style="font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7ee8b0">RoundTable AI</div><h1 style="margin:18px 0 0;font-size:30px;line-height:1.15">Your interview is ready.</h1></div><div style="padding:28px;background:#fff;border:1px solid #dce8e0;border-top:0;border-radius:0 0 20px 20px"><p style="font-size:16px;line-height:1.6">Hi ${safeName},</p><p style="font-size:16px;line-height:1.6">${safeRecruiter} has invited you to interview for the <strong>${safeRole}</strong> role.</p><div style="margin:24px 0;padding:18px;border-radius:14px;background:#f2faf5"><strong style="display:block;margin-bottom:8px">What to expect</strong><span style="display:block;font-size:14px;line-height:1.6">A disclosed AI panel will explore how you think, communicate, and connect decisions to real customer impact. You can ask it to pause or repeat a question at any time.</span></div><a href="${safeLink}" style="display:inline-block;padding:14px 20px;border-radius:10px;background:#25b875;color:#062313;font-weight:800;text-decoration:none">Start interview</a><p style="margin-top:24px;font-size:13px;line-height:1.6;color:#52665a">Please use headphones and a quiet space if possible. This secure link is single-use and expires in 7 days. Need a different time or accommodation? Reply directly to this email.</p><p style="font-size:14px;line-height:1.5">Best,<br><strong>${safeRecruiter}</strong><br>RoundTable AI</p></div></div></body></html>`;
+    return { subject, body, html };
   }
 
   function openGmailDraft(candidateData: Candidate, link: string) {
@@ -571,7 +581,7 @@ export function CompanyDashboard() {
       return;
     }
     const rawStart = invitationSchedules[jcId]?.startsAt;
-    const start = rawStart ? new Date(rawStart) : new Date(Date.now() + 86_400_000);
+    const start = new Date(rawStart ?? defaultInvitationStart);
     if (Number.isNaN(start.getTime())) {
       setMessage('Choose a valid interview time before opening Google Calendar.');
       return;
@@ -602,15 +612,16 @@ export function CompanyDashboard() {
     }
     setPendingAction(`send:${jcId}`);
     try {
-      const { subject, body } = invitationMessage(candidateData, link);
+      const { subject, body, html } = invitationMessage(candidateData, link);
       const response = await fetch('/api/delivery/google', {
         method: 'POST',
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send_email', providerToken, to: candidateData.email, subject, body }),
+        body: JSON.stringify({ action: 'send_email', providerToken, to: candidateData.email, subject, body, html }),
       });
       const result = await response.json() as { error?: { message?: string }; providerStatus?: number };
       if (!response.ok) throw new Error(result.error?.message ?? 'Google could not send the invitation.');
       setMessage(`Invitation sent to ${candidateData.email}.`);
+      setDeliveryActivity({ kind: 'email', label: 'Invitation sent', detail: `${candidateData.fullName ?? candidateData.email} was notified by email.` });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not send the invitation.');
     } finally {
@@ -629,7 +640,7 @@ export function CompanyDashboard() {
       return;
     }
     const rawStart = invitationSchedules[jcId]?.startsAt;
-    const start = rawStart ? new Date(rawStart) : new Date(Date.now() + 86_400_000);
+    const start = new Date(rawStart ?? defaultInvitationStart);
     if (Number.isNaN(start.getTime())) {
       setMessage('Choose a valid interview time before creating the calendar event.');
       return;
@@ -655,6 +666,7 @@ export function CompanyDashboard() {
       const result = await response.json() as { error?: { message?: string } };
       if (!response.ok) throw new Error(result.error?.message ?? 'Google could not create the calendar event.');
       setMessage(`Calendar invitation created and sent to ${candidateData.email}.`);
+      setDeliveryActivity({ kind: 'calendar', label: 'Calendar invite sent', detail: `${candidateData.fullName ?? candidateData.email} received the interview event.` });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not create the calendar event.');
     } finally {
@@ -731,6 +743,21 @@ export function CompanyDashboard() {
         <section className={styles.workspaceBar}>
           <div><span className={styles.eyebrow}>RECRUITING WORKSPACE</span><h1>Interviews</h1><p>{stats.jobs} roles · {stats.candidates} candidates · {stats.completed} ready for review</p></div>
           <div className={styles.heroActions}><Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>{pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh</Button><Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}><WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}</Button></div>
+        </section>
+
+        <section className={styles.bentoGrid} aria-label="Recruiting overview">
+          <article className={`${styles.bentoCard} ${styles.bentoFocus}`}>
+            <span className={styles.bentoLabel}>NEXT BEST STEP</span>
+            <strong>{nextStep.label}</strong>
+            <p>{nextStep.detail}</p>
+            <button type="button" onClick={() => setActiveTab(nextStep.tab)}>{nextStep.label} <ArrowRight size={14}/></button>
+          </article>
+          <article className={styles.bentoCard}><Briefcase size={17}/><span className={styles.bentoLabel}>OPEN ROLES</span><strong>{stats.jobs}</strong><small>Hiring workspaces</small></article>
+          <article className={styles.bentoCard}><UserPlus size={17}/><span className={styles.bentoLabel}>CANDIDATES</span><strong>{stats.candidates}</strong><small>Across this workspace</small></article>
+          <article className={styles.bentoCard}><CheckCircle2 size={17}/><span className={styles.bentoLabel}>EVIDENCE READY</span><strong>{stats.completed}</strong><small>Ready for human review</small></article>
+          <article className={`${styles.bentoCard} ${styles.bentoActivity}`}>
+            {deliveryActivity ? <><div className={styles.activityIcon}>{deliveryActivity.kind === 'email' ? <Mail size={17}/> : <CalendarDays size={17}/>}</div><span className={styles.bentoLabel}>DELIVERY CONFIRMED</span><strong>{deliveryActivity.label}</strong><p>{deliveryActivity.detail}</p></> : <><div className={styles.activityIcon}><ShieldCheck size={17}/></div><span className={styles.bentoLabel}>DELIVERY CENTER</span><strong>Ready when you are</strong><p>Generate a private link, then send a polished email or calendar invite.</p></>}
+          </article>
         </section>
 
         {message && <div className={styles.notice} role="status"><Sparkles size={16}/><span>{message}</span></div>}

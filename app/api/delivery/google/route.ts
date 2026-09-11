@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireCompanyContext } from '@/lib/supabase-admin';
+import { getSupabaseAdmin, requireCompanyContext } from '@/lib/supabase-admin';
 import { apiError } from '@/lib/http';
 
 const DeliverySchema = z.discriminatedUnion('action', [
@@ -10,6 +10,7 @@ const DeliverySchema = z.discriminatedUnion('action', [
     to: z.string().email().max(320),
     subject: z.string().min(1).max(240),
     body: z.string().min(1).max(12_000),
+    html: z.string().min(1).max(24_000).optional(),
   }),
   z.object({
     action: z.literal('create_calendar_event'),
@@ -31,6 +32,14 @@ async function googleJson(response: Response): Promise<Record<string, unknown>> 
   try { return JSON.parse(text) as Record<string, unknown>; } catch { return {}; }
 }
 
+async function recordDelivery(organizationId: string, recipientId: string, type: string, payload: Record<string, unknown>) {
+  const admin = getSupabaseAdmin();
+  if (!admin) return;
+  await admin.from('notifications').insert({ organization_id: organizationId, recipient_id: recipientId, type, payload }).then(({ error }) => {
+    if (error) console.warn('[delivery] notification insert failed', { code: error.code });
+  });
+}
+
 function googleError(payload: Record<string, unknown>, status: number) {
   const error = payload.error as Record<string, unknown> | undefined;
   const message = typeof error?.message === 'string' ? error.message : `Google delivery failed (${status}).`;
@@ -42,24 +51,39 @@ function googleError(payload: Record<string, unknown>, status: number) {
 
 export async function POST(request: Request) {
   try {
-    await requireCompanyContext(request);
+    const company = await requireCompanyContext(request);
     const input = DeliverySchema.parse(await request.json());
     const authorization = { Authorization: `Bearer ${input.providerToken}`, 'Content-Type': 'application/json' };
 
     if (input.action === 'send_email') {
-      const raw = [
+      const raw = input.html ? [
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/alternative; boundary="roundtable-invite"',
+        '',
+        '--roundtable-invite',
+        'Content-Type: text/plain; charset=UTF-8',
+        '',
+        input.body,
+        '--roundtable-invite',
+        'Content-Type: text/html; charset=UTF-8',
+        '',
+        input.html,
+        '--roundtable-invite--',
+      ] : [
         `To: ${input.to}`,
         `Subject: ${input.subject}`,
         'MIME-Version: 1.0',
         'Content-Type: text/plain; charset=UTF-8',
         '',
         input.body,
-      ].join('\r\n');
+      ];
+      if (input.html) raw.unshift(`To: ${input.to}`, `Subject: ${input.subject}`);
       const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-        method: 'POST', headers: authorization, body: JSON.stringify({ raw: encodeGmailMessage(raw) }),
+        method: 'POST', headers: authorization, body: JSON.stringify({ raw: encodeGmailMessage(raw.join('\r\n')) }),
       });
       const payload = await googleJson(response);
       if (!response.ok) return NextResponse.json({ error: googleError(payload, response.status), providerStatus: response.status }, { status: 422 });
+      await recordDelivery(company.organizationId, company.userId, 'invitation_email_sent', { to: input.to, subject: input.subject, providerMessageId: payload.id });
       return NextResponse.json({ delivered: true, provider: 'gmail', messageId: payload.id });
     }
 
@@ -76,6 +100,7 @@ export async function POST(request: Request) {
     });
     const payload = await googleJson(response);
     if (!response.ok) return NextResponse.json({ error: googleError(payload, response.status), providerStatus: response.status }, { status: 422 });
+    await recordDelivery(company.organizationId, company.userId, 'invitation_calendar_sent', { to: input.attendeeEmail, title: input.title, providerEventId: payload.id });
     return NextResponse.json({ delivered: true, provider: 'calendar', eventId: payload.id, eventLink: payload.htmlLink });
   } catch (error) {
     return apiError(error, 'Could not complete Google delivery');
