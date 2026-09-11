@@ -18,6 +18,7 @@
 - `app/api/ai/chat/completions`: authenticated Agora custom LLM boundary.
 - `app/api/ai/sarvam/tts`: retained authenticated Sarvam PCM bridge for compatibility; live interview agents use Agora's native Sarvam adapter instead.
 - `app/api/mcp/[grant]`: session-scoped Streamable HTTP MCP endpoint.
+- `app/api/delivery/google`: authenticated recruiter delivery proxy; it forwards a transient Google provider token only for an explicit send-email or create-event action and returns a bounded provider error without logging the token.
 - `lib/interview-controller.ts`: evaluator validation and deterministic next-speaker rules.
 - `app/api/interviews/[id]/plan`, `lib/interview-planner.ts`: server-loaded Job hiring-bar execution, immutable blueprint rubric generation, and adaptive interview scenarios.
 - `lib/interview-demo.ts`, `lib/interview-controller.ts`: five-role showcase coverage, evidence-prioritized role handoffs, opening/closing text, and answered-role progress.

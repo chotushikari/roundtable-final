@@ -86,13 +86,6 @@ function googleCalendarDate(date: Date) {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 }
 
-function encodeGmailMessage(value: string) {
-  const bytes = new TextEncoder().encode(value);
-  let binary = '';
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
 function GoogleMark() {
   return <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.googleMark}><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.42l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.6 0-4.81-1.76-5.6-4.13H3.06v2.62A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.87A6 6 0 0 1 6.1 12c0-.65.11-1.28.3-1.87V7.51H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.49l3.34-2.62Z"/><path fill="#EA4335" d="M12 6c1.47 0 2.78.5 3.82 1.49l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.94 5.51l3.34 2.62C7.19 7.76 9.4 6 12 6Z"/></svg>;
 }
@@ -610,20 +603,12 @@ export function CompanyDashboard() {
     setPendingAction(`send:${jcId}`);
     try {
       const { subject, body } = invitationMessage(candidateData, link);
-      const raw = [
-        `To: ${candidateData.email}`,
-        `Subject: ${subject}`,
-        'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=UTF-8',
-        '',
-        body,
-      ].join('\r\n');
-      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      const response = await fetch('/api/delivery/google', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${providerToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw: encodeGmailMessage(raw) }),
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send_email', providerToken, to: candidateData.email, subject, body }),
       });
-      const result = await response.json() as { error?: { message?: string } };
+      const result = await response.json() as { error?: { message?: string }; providerStatus?: number };
       if (!response.ok) throw new Error(result.error?.message ?? 'Google could not send the invitation.');
       setMessage(`Invitation sent to ${candidateData.email}.`);
     } catch (error) {
@@ -654,17 +639,17 @@ export function CompanyDashboard() {
     const { body } = invitationMessage(candidateData, link);
     setPendingAction(`calendar:${jcId}`);
     try {
-      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all', {
+      const response = await fetch('/api/delivery/google', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${providerToken}`, 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          summary: `RoundTable interview / ${role}`,
+          action: 'create_calendar_event',
+          providerToken,
+          attendeeEmail: candidateData.email,
+          title: `RoundTable interview / ${role}`,
           description: body,
-          start: { dateTime: start.toISOString() },
-          end: { dateTime: end.toISOString() },
-          attendees: [{ email: candidateData.email }],
-          guestsCanModify: false,
-          guestsCanInviteOthers: false,
+          startsAt: start.toISOString(),
+          endsAt: end.toISOString(),
         }),
       });
       const result = await response.json() as { error?: { message?: string } };
