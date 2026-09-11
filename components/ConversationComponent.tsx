@@ -669,7 +669,11 @@ export default function ConversationComponent({
   }, [agentState, agentUID, compactDemo, companionDemo, handleEndConversation, transcript]);
 
   const roomReady = joinSuccess && isAgentConnected;
-  const preparationComplete = roomReady && preparationSeconds >= PREPARATION_SECONDS;
+  // The preparation interval is a fixed candidate-facing boundary. The agent
+  // starts at its end, so waiting for its RTC cold start here can trap the
+  // candidate on a zero-second countdown. Enter the room on time and retain
+  // the real connection state in the interview surface while it joins.
+  const preparationComplete = preparationSeconds >= PREPARATION_SECONDS;
   const preparationOverlay = !compactDemo && !companionDemo && !preparationComplete
     ? <InterviewPreparationScreen phase="connecting" secondsRemaining={Math.max(0, PREPARATION_SECONDS - preparationSeconds)} roomReady={roomReady} onLeave={handleEndConversation} overlay />
     : null;
