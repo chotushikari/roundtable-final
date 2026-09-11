@@ -6,8 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient, type Session } from '@supabase/supabase-js';
 import {
   Activity, ArrowLeft, ArrowRight, Briefcase, BriefcaseBusiness, Check,
-  CheckCircle2, ChevronRight, Clipboard, Clock3, FileText,
-  Link2, LoaderCircle, LogOut, MapPin, Plus, RefreshCw, ShieldCheck,
+  CalendarDays, CheckCircle2, ChevronRight, Clipboard, Clock3, FileText,
+  Link2, LoaderCircle, LogOut, Mail, MapPin, Plus, RefreshCw, ShieldCheck,
   Sparkles, Tag, Upload, UserPlus, WandSparkles, X,
 } from 'lucide-react';
 import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
@@ -34,6 +34,7 @@ type SessionSummary = {
 type Candidate = { id: string; fullName: string | null; email: string | null };
 type JobCandidate = { id: string; candidateId: string; stage: string; createdAt: string; candidate: Candidate };
 type HumanDecision = { id: string; decision: 'advance' | 'hold' | 'decline' | 'needs_review'; rationale: string; decidedAt: string };
+type InvitationSchedule = { startsAt: string };
 
 const employmentLabels: Record<string, string> = {
   full_time: 'Full-time', part_time: 'Part-time', internship: 'Internship',
@@ -75,6 +76,15 @@ const interviewTemplates = {
   },
 } as const;
 const focusOptions = ['System design', 'Caching & performance', 'Customer impact', 'Ownership', 'API design', 'Data modelling'];
+
+function localDateTimeValue(date: Date) {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function googleCalendarDate(date: Date) {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
 
 function GoogleMark() {
   return <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.googleMark}><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.42l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.6 0-4.81-1.76-5.6-4.13H3.06v2.62A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.87A6 6 0 0 1 6.1 12c0-.65.11-1.28.3-1.87V7.51H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.49l3.34-2.62Z"/><path fill="#EA4335" d="M12 6c1.47 0 2.78.5 3.82 1.49l2.87-2.87A9.62 9.62 0 0 0 12 2a10 10 0 0 0-8.94 5.51l3.34 2.62C7.19 7.76 9.4 6 12 6Z"/></svg>;
@@ -145,6 +155,8 @@ export function CompanyDashboard() {
   const [resumeTexts, setResumeTexts] = useState<Record<string, string>>({});
   const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [defaultInvitationStart] = useState(() => localDateTimeValue(new Date(Date.now() + 86_400_000)));
+  const [invitationSchedules, setInvitationSchedules] = useState<Record<string, InvitationSchedule>>({});
 
   // ── UI feedback ──────────────────────────────────────────────────────────────
   const [message, setMessage] = useState('');
@@ -477,6 +489,70 @@ export function CompanyDashboard() {
       window.setTimeout(() => setCopiedId(null), 2200);
     } catch { setMessage('Clipboard blocked. Select and copy manually.'); }
     finally { setPendingAction(null); }
+  }
+
+  function invitationMessage(candidateData: Candidate, link: string) {
+    const candidateName = candidateData.fullName?.trim() || 'there';
+    const recruiterName = String(profileName).trim() || 'the RoundTable team';
+    const role = selectedJob?.title || interviews[0]?.roleTitle || 'the role';
+    const mode = interviews[0]?.demoMode ? 'a focused 10-minute, five-perspective interview' : 'an adaptive interview panel';
+    const subject = `Your RoundTable interview for ${role}`;
+    const body = [
+      `Hi ${candidateName},`,
+      '',
+      `You are invited to interview for ${role}. ${recruiterName} has prepared ${mode} so you can demonstrate both how you think and the impact of your decisions.`,
+      '',
+      'What to expect',
+      '• You will speak with a disclosed AI interview panel representing different perspectives.',
+      '• Questions adapt to your answers; you can ask the panel to pause or repeat a question.',
+      '• Please use headphones and a quiet space if possible. You will have a short preparation period before the interview begins.',
+      '',
+      'Start your interview securely:',
+      link,
+      '',
+      'This private link is single-use and expires in 7 days. If you need an accommodation or a different time, reply directly to this email.',
+      '',
+      `Best,`,
+      recruiterName,
+      'RoundTable AI',
+    ].join('\n');
+    return { subject, body };
+  }
+
+  function openGmailDraft(candidateData: Candidate, link: string) {
+    if (!candidateData.email) {
+      setMessage('Add the candidate’s email before opening a Gmail draft.');
+      return;
+    }
+    const { subject, body } = invitationMessage(candidateData, link);
+    const params = new URLSearchParams({ view: 'cm', fs: '1', to: candidateData.email, su: subject, body });
+    window.open(`https://mail.google.com/mail/?${params.toString()}`, '_blank', 'noopener,noreferrer');
+    setMessage('Opened a personalised Gmail draft. Review it, then send from your Google account.');
+  }
+
+  function openCalendarHold(jcId: string, candidateData: Candidate, link: string) {
+    if (!candidateData.email) {
+      setMessage('Add the candidate’s email before preparing a calendar invitation.');
+      return;
+    }
+    const rawStart = invitationSchedules[jcId]?.startsAt;
+    const start = rawStart ? new Date(rawStart) : new Date(Date.now() + 86_400_000);
+    if (Number.isNaN(start.getTime())) {
+      setMessage('Choose a valid interview time before opening Google Calendar.');
+      return;
+    }
+    const end = new Date(start.getTime() + Math.max((interviews[0]?.durationMinutes ?? 30), 30) * 60_000);
+    const role = selectedJob?.title || interviews[0]?.roleTitle || 'RoundTable interview';
+    const { body } = invitationMessage(candidateData, link);
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: `RoundTable interview · ${role}`,
+      dates: `${googleCalendarDate(start)}/${googleCalendarDate(end)}`,
+      details: body,
+      add: candidateData.email,
+    });
+    window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank', 'noopener,noreferrer');
+    setMessage('Opened a Google Calendar event with the candidate and secure interview link prefilled.');
   }
 
   // ─── Auth screens ────────────────────────────────────────────────────────────
@@ -903,6 +979,37 @@ export function CompanyDashboard() {
                                   {copiedId === jc.id ? 'Copied' : 'Copy'}
                                 </Button>
                               </div>
+                              <div className={styles.inviteDelivery}>
+                                <div className={styles.deliveryCopy}>
+                                  <span>Send professionally</span>
+                                  <small>Uses your signed-in Google workspace. Nothing is sent until you review it.</small>
+                                </div>
+                                <div className={styles.deliveryActions}>
+                                  <Button size="sm" variant="outline" className={styles.gmailButton}
+                                    disabled={!jc.candidate.email}
+                                    title={jc.candidate.email ? 'Open a personalised Gmail draft' : 'Add an email address to send an invitation'}
+                                    onClick={() => openGmailDraft(jc.candidate, link)}>
+                                    <Mail size={13}/> Open Gmail draft
+                                  </Button>
+                                  <Button size="sm" variant="outline" className={styles.calendarButton}
+                                    disabled={!jc.candidate.email}
+                                    title={jc.candidate.email ? 'Open a Google Calendar invitation' : 'Add an email address to schedule an invitation'}
+                                    onClick={() => openCalendarHold(jc.id, jc.candidate, link)}>
+                                    <CalendarDays size={13}/> Add calendar hold
+                                  </Button>
+                                </div>
+                              </div>
+                              <label className={styles.scheduleField}>
+                                <span>Suggested interview time <small>optional — used only for the calendar hold</small></span>
+                                <input
+                                  type="datetime-local"
+                                  value={invitationSchedules[jc.id]?.startsAt ?? defaultInvitationStart}
+                                  onChange={(event) => setInvitationSchedules((previous) => ({
+                                    ...previous,
+                                    [jc.id]: { startsAt: event.target.value },
+                                  }))}
+                                />
+                              </label>
                             </div>
                           )}
                         </div>

@@ -65,7 +65,9 @@ function getProtofaceAvatarConfig(): { apiKey: string; avatarId: string; apiBase
   return {
     apiKey,
     avatarId,
-    apiBaseUrl: (process.env.PROTOFACE_AGORA_BASE_URL?.trim() || 'https://api.protoface.com/v1/agora/').replace(/\/+$/, ''),
+    // Protoface's Generic Avatar adapter expects the Agora base URL to end in
+    // a slash. It appends its operation path to this value internally.
+    apiBaseUrl: `${(process.env.PROTOFACE_AGORA_BASE_URL?.trim() || 'https://api.protoface.com/v1/agora/').replace(/\/+$/, '')}/`,
   };
 }
 

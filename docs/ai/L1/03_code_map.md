@@ -10,7 +10,7 @@
 - `components/InterviewPreparationScreen.tsx`: shared full-screen candidate setup surface used during bootstrap and RTC/panel readiness; it reports only truthful connection state.
 - `components/RoundTableExperience.tsx` and its CSS module: public scroll narrative, Three.js artifact, five-role labels, embedded compact Agora sample, and companion interaction.
 - `app/page.tsx`, `app/loading.tsx`: public experience entry point and reduced-motion-safe transition mark.
-- `components/CompanyDashboard.tsx`: Google-only interviewer auth, auto-provisioned private workspace, server-backed finale/adaptive interview builder, recruiter resume/link flow, candidate evidence review, and live/completed session pipeline.
+- `components/CompanyDashboard.tsx`: Google-only interviewer auth, auto-provisioned private workspace, server-backed finale/adaptive interview builder, recruiter resume/link flow with reviewed Gmail/Calendar handoffs, candidate evidence review, and live/completed session pipeline.
 - `components/CompanyAnalysisPage.tsx`, `app/company/analysis/[sessionId]`: authenticated standalone completed-analysis route and candidate-summary release flow.
 - `components/CompanyInterviewReportView.tsx`: evidence-linked Overview, Competencies, Panel views, Transcript, and Workspace report sections; transcript entries expose bounded transition reasons, difficulty, role handoffs, and validated vagueness/contradiction flags.
 - `components/InterviewWorkspace.tsx`: Monaco, one embedded Excalidraw canvas, autosaved drafts, and checkpoints.

@@ -14,7 +14,9 @@ type QuickstartPipelineMetricsProps = {
 const PIPELINE = [
   { key: 'stt', label: 'Deepgram STT', metricTypes: ['stt', 'asr'] },
   { key: 'llm', label: 'OpenAI LLM', metricTypes: ['llm', 'mllm'] },
-  { key: 'tts', label: 'MiniMax TTS', metricTypes: ['tts'] },
+  // The selected provider is server-owned (Sarvam when configured, otherwise
+  // MiniMax). Do not misrepresent the active voice from a browser-only label.
+  { key: 'tts', label: 'Interview TTS', metricTypes: ['tts'] },
 ] as const;
 
 function formatMetricName(name: string) {
