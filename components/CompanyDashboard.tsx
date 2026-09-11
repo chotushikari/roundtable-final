@@ -15,6 +15,7 @@ import type { PanelRole } from '@/types/interview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import styles from './CompanyDashboard.module.css';
+import { RecruiterSignalField } from './RecruiterSignalField';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -727,6 +728,12 @@ export function CompanyDashboard() {
     <div className={styles.page}>
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand}><i/> RoundTable AI</Link>
+        <nav className={styles.productNav} aria-label="Recruiter workspace navigation">
+          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Overview</button>
+          <button type="button" onClick={() => selectedJob && setActiveTab('candidates')} disabled={!selectedJob} aria-current={activeTab === 'candidates' ? 'page' : undefined}>Candidates</button>
+          <button type="button" onClick={() => selectedJob && setActiveTab('pipeline')} disabled={!selectedJob} aria-current={activeTab === 'pipeline' ? 'page' : undefined}>Pipeline</button>
+          <button type="button" onClick={() => selectedJob && setActiveTab('compare')} disabled={!selectedJob} aria-current={activeTab === 'compare' ? 'page' : undefined}>Evidence</button>
+        </nav>
         <div className={styles.topActions}>
           <span className={styles.userChip}>
             <span><b>{profileName}</b><small>Recruiter</small></span>
@@ -740,23 +747,30 @@ export function CompanyDashboard() {
       </header>
 
       <main className={styles.shell}>
-        <section className={styles.workspaceBar}>
-          <div><span className={styles.eyebrow}>RECRUITING WORKSPACE</span><h1>Interviews</h1><p>{stats.jobs} roles · {stats.candidates} candidates · {stats.completed} ready for review</p></div>
-          <div className={styles.heroActions}><Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>{pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh</Button><Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}><WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}</Button></div>
+        <section className={styles.commandHero}>
+          <div className={styles.commandCopy}>
+            <span className={styles.eyebrow}>ROUND TABLE / RECRUITER OS</span>
+            <h1>Hire with signal,<br/><em>not noise.</em></h1>
+            <p>Shape the hiring bar, run an adaptive panel, and keep every decision anchored to evidence you can inspect.</p>
+            <div className={styles.heroActions}><Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>{pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh</Button><Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}><WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}</Button></div>
+          </div>
+          <div className={styles.signalCard}>
+            <div className={styles.signalLabel}><span><i/> Live workspace</span><small>{stats.candidates} candidates tracked</small></div>
+            <div className={styles.signalCanvas}><RecruiterSignalField candidates={stats.candidates} evidenceReady={stats.completed}/></div>
+            <div className={styles.signalLegend}><span><i/> Evidence ready</span><span><b/> In progress</span></div>
+          </div>
         </section>
 
         <section className={styles.bentoGrid} aria-label="Recruiting overview">
           <article className={`${styles.bentoCard} ${styles.bentoFocus}`}>
-            <span className={styles.bentoLabel}>NEXT BEST STEP</span>
-            <strong>{nextStep.label}</strong>
-            <p>{nextStep.detail}</p>
+            <span className={styles.bentoLabel}>GUIDED WORKFLOW</span><strong>{nextStep.label}</strong><p>{nextStep.detail}</p>
             <button type="button" onClick={() => setActiveTab(nextStep.tab)}>{nextStep.label} <ArrowRight size={14}/></button>
           </article>
           <article className={styles.bentoCard}><Briefcase size={17}/><span className={styles.bentoLabel}>OPEN ROLES</span><strong>{stats.jobs}</strong><small>Hiring workspaces</small></article>
           <article className={styles.bentoCard}><UserPlus size={17}/><span className={styles.bentoLabel}>CANDIDATES</span><strong>{stats.candidates}</strong><small>Across this workspace</small></article>
-          <article className={styles.bentoCard}><CheckCircle2 size={17}/><span className={styles.bentoLabel}>EVIDENCE READY</span><strong>{stats.completed}</strong><small>Ready for human review</small></article>
+          <article className={styles.bentoCard}><CheckCircle2 size={17}/><span className={styles.bentoLabel}>EVIDENCE READY</span><strong>{stats.completed}</strong><small>Ready for review</small></article>
           <article className={`${styles.bentoCard} ${styles.bentoActivity}`}>
-            {deliveryActivity ? <><div className={styles.activityIcon}>{deliveryActivity.kind === 'email' ? <Mail size={17}/> : <CalendarDays size={17}/>}</div><span className={styles.bentoLabel}>DELIVERY CONFIRMED</span><strong>{deliveryActivity.label}</strong><p>{deliveryActivity.detail}</p></> : <><div className={styles.activityIcon}><ShieldCheck size={17}/></div><span className={styles.bentoLabel}>DELIVERY CENTER</span><strong>Ready when you are</strong><p>Generate a private link, then send a polished email or calendar invite.</p></>}
+            {deliveryActivity ? <><div className={styles.activityIcon}>{deliveryActivity.kind === 'email' ? <Mail size={17}/> : <CalendarDays size={17}/>}</div><span className={styles.bentoLabel}>DELIVERY CONFIRMED</span><strong>{deliveryActivity.label}</strong><p>{deliveryActivity.detail}</p></> : <><div className={styles.activityIcon}><ShieldCheck size={17}/></div><span className={styles.bentoLabel}>DELIVERY CENTER</span><strong>Candidate-ready invites</strong><p>Generate a private link, then deliver a polished email or calendar invite.</p></>}
           </article>
         </section>
 
