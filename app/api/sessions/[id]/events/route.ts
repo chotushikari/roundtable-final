@@ -8,7 +8,7 @@ import { normalizeSpokenText } from '@/lib/interview-demo';
 import { speakInterviewAgent } from '@/lib/agora-server';
 
 const EventSchema = z.object({
-  type: z.enum(['AGENT_STATE_CHANGED', 'METRICS', 'ERROR', 'CONNECTION_STATE', 'INTERRUPTED', 'QUESTION_DELIVERED', 'CAMERA_PRESENCE']),
+  type: z.enum(['AGENT_STATE_CHANGED', 'METRICS', 'ERROR', 'CONNECTION_STATE', 'INTERRUPTED', 'QUESTION_DELIVERED', 'CAMERA_PRESENCE', 'SILENCE_NUDGE']),
   payload: z.record(z.string(), z.unknown()).default({}),
 });
 
@@ -23,6 +23,7 @@ function sanitize(type: string, payload: Record<string, unknown>): Record<string
     restoredAt: payload.restoredAt,
     durationMs: payload.durationMs,
   };
+  if (type === 'SILENCE_NUDGE') return {};
   return { turnId: payload.turnId };
 }
 
@@ -98,6 +99,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await interviewStore.appendEvent(id, 'camera.presence_timeout', sanitize(event.type, cameraEvent));
       }
       return NextResponse.json({ accepted: true, status: 'ended_camera_absence', humanReviewRequired: true }, { status: 202 });
+    }
+    if (event.type === 'SILENCE_NUDGE') {
+      const fresh = (await interviewStore.getSession(id)) ?? session;
+      if (fresh.agoraAgentId && fresh.agentUid && fresh.status === 'in_progress') {
+        const nudges = [
+          "Take your time, I'm here when you're ready.",
+          "Do you need a moment to think?",
+          "Let me know if you need me to repeat the question.",
+          "I'm still here. Just let me know when you're ready to continue.",
+        ];
+        const randomNudge = nudges[Math.floor(Math.random() * nudges.length)];
+        try {
+          await speakInterviewAgent({
+            agentId: fresh.agoraAgentId,
+            channel: fresh.channelName,
+            agentUid: fresh.agentUid,
+            text: randomNudge,
+          });
+          await interviewStore.appendEvent(id, 'silence.nudge', { text: randomNudge });
+        } catch (error) {
+          console.error('[silence-nudge] could not deliver nudge', { sessionId: id, error });
+        }
+      }
+      return NextResponse.json({ accepted: true }, { status: 202 });
     }
     if (event.type === 'QUESTION_DELIVERED') {
       const fresh = (await interviewStore.getSession(id)) ?? session;

@@ -498,6 +498,42 @@ export default function ConversationComponent({
     }
   }, [messageList, logEvent]);
 
+  const lastNudgedAtRef = useRef<number>(0);
+  const nudgeTimerRef = useRef<number | null>(null);
+
+  // Proactive silence detection
+  useEffect(() => {
+    if (agentState !== 'listening') {
+      if (nudgeTimerRef.current !== null) {
+        window.clearTimeout(nudgeTimerRef.current);
+        nudgeTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (nudgeTimerRef.current !== null) {
+      window.clearTimeout(nudgeTimerRef.current);
+    }
+
+    nudgeTimerRef.current = window.setTimeout(() => {
+      // Only nudge once every 20 seconds to avoid spam
+      if (Date.now() - lastNudgedAtRef.current < 20000) return;
+      lastNudgedAtRef.current = Date.now();
+
+      fetch(`/api/sessions/${agoraData.sessionId}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'SILENCE_NUDGE' }),
+      }).catch(console.error);
+    }, 7000);
+
+    return () => {
+      if (nudgeTimerRef.current !== null) {
+        window.clearTimeout(nudgeTimerRef.current);
+      }
+    };
+  }, [agentState, transcript, agoraData.sessionId]);
+
   const currentInProgressMessage = useMemo(() => {
     // The live partial turn renders separately from the completed history list.
     return getCurrentInProgressMessage(transcript);
