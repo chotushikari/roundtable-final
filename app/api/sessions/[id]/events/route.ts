@@ -5,9 +5,10 @@ import { apiError } from '@/lib/http';
 import { interviewStore } from '@/lib/interview-store';
 import { demoQuestion } from '@/lib/demo-turns';
 import { normalizeSpokenText } from '@/lib/interview-demo';
+import { speakInterviewAgent } from '@/lib/agora-server';
 
 const EventSchema = z.object({
-  type: z.enum(['AGENT_STATE_CHANGED', 'METRICS', 'ERROR', 'CONNECTION_STATE', 'INTERRUPTED', 'QUESTION_DELIVERED']),
+  type: z.enum(['AGENT_STATE_CHANGED', 'METRICS', 'ERROR', 'CONNECTION_STATE', 'INTERRUPTED', 'QUESTION_DELIVERED', 'CAMERA_PRESENCE']),
   payload: z.record(z.string(), z.unknown()).default({}),
 });
 
@@ -16,6 +17,12 @@ function sanitize(type: string, payload: Record<string, unknown>): Record<string
   if (type === 'ERROR') return { source: payload.source, code: payload.code, message: String(payload.message ?? '').slice(0, 500) };
   if (type === 'CONNECTION_STATE') return { state: payload.state, timestamp: payload.timestamp };
   if (type === 'AGENT_STATE_CHANGED') return { state: payload.state };
+  if (type === 'CAMERA_PRESENCE') return {
+    action: payload.action,
+    missingAt: payload.missingAt,
+    restoredAt: payload.restoredAt,
+    durationMs: payload.durationMs,
+  };
   return { turnId: payload.turnId };
 }
 
@@ -24,6 +31,74 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const session = await requireCandidateSession(request, id);
     const event = EventSchema.parse(await request.json());
+    if (event.type === 'CAMERA_PRESENCE') {
+      const cameraEvent = z.object({
+        action: z.enum(['paused', 'restored', 'timeout']),
+        missingAt: z.string().datetime().optional(),
+        restoredAt: z.string().datetime().optional(),
+        durationMs: z.number().int().min(0).max(86_400_000).optional(),
+      }).parse(event.payload);
+      const events = await interviewStore.listEvents(id);
+      const latestCameraEvent = [...events].reverse().find((item) => [
+        'camera.presence_paused',
+        'camera.presence_restored',
+        'camera.presence_timeout',
+      ].includes(item.type));
+
+      if (cameraEvent.action === 'paused') {
+        let pauseEvent = latestCameraEvent;
+        if (latestCameraEvent?.type !== 'camera.presence_paused') {
+          pauseEvent = await interviewStore.appendEvent(id, 'camera.presence_paused', sanitize(event.type, cameraEvent));
+        }
+        const warningDelivered = events.some((item) => item.type === 'camera.presence_warning'
+          && Date.parse(item.createdAt) >= Date.parse(pauseEvent!.createdAt));
+        if (warningDelivered) return NextResponse.json({ accepted: true, warningDelivered: true }, { status: 202 });
+        const fresh = (await interviewStore.getSession(id)) ?? session;
+        if (fresh.agoraAgentId && fresh.agentUid && fresh.status === 'in_progress') {
+          try {
+            await speakInterviewAgent({
+              agentId: fresh.agoraAgentId,
+              channel: fresh.channelName,
+              agentUid: fresh.agentUid,
+              text: 'Please return to the camera when you can. The interview is paused.',
+            });
+            await interviewStore.appendEvent(id, 'camera.presence_warning', {});
+            return NextResponse.json({ accepted: true, warningDelivered: true }, { status: 202 });
+          } catch (error) {
+            console.error('[camera-presence] could not deliver pause prompt', { sessionId: id, error });
+          }
+        }
+        return NextResponse.json({ accepted: true, warningDelivered: false }, { status: 202 });
+      }
+
+      if (cameraEvent.action === 'restored') {
+        if (latestCameraEvent?.type !== 'camera.presence_paused') {
+          return NextResponse.json({ accepted: true }, { status: 202 });
+        }
+        await interviewStore.appendEvent(id, 'camera.presence_restored', sanitize(event.type, cameraEvent));
+        const fresh = (await interviewStore.getSession(id)) ?? session;
+        const pendingQuestion = fresh.pendingQuestion?.replace(/^\[interrupted\]\s*/i, '').trim();
+        if (pendingQuestion && fresh.agoraAgentId && fresh.agentUid && fresh.status === 'in_progress') {
+          try {
+            await speakInterviewAgent({
+              agentId: fresh.agoraAgentId,
+              channel: fresh.channelName,
+              agentUid: fresh.agentUid,
+              text: `Welcome back. Let me repeat the question: ${pendingQuestion}`,
+            });
+            await interviewStore.appendEvent(id, 'camera.presence_resumed', {});
+          } catch (error) {
+            console.error('[camera-presence] could not repeat the pending question', { sessionId: id, error });
+          }
+        }
+        return NextResponse.json({ accepted: true }, { status: 202 });
+      }
+
+      if (latestCameraEvent?.type !== 'camera.presence_timeout') {
+        await interviewStore.appendEvent(id, 'camera.presence_timeout', sanitize(event.type, cameraEvent));
+      }
+      return NextResponse.json({ accepted: true, status: 'ended_camera_absence', humanReviewRequired: true }, { status: 202 });
+    }
     if (event.type === 'QUESTION_DELIVERED') {
       const fresh = (await interviewStore.getSession(id)) ?? session;
       const question = demoQuestion(fresh);

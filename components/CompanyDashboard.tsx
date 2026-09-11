@@ -31,6 +31,7 @@ type Interview = {
 type SessionSummary = {
   id: string; status: string; health: string; startedAt: string; completedAt: string | null; interviewId: string;
   jobCandidateId?: string | null; candidateName?: string | null;
+  endReason?: 'camera_absence' | null;
 };
 type Candidate = { id: string; fullName: string | null; email: string | null };
 type JobCandidate = { id: string; candidateId: string; stage: string; createdAt: string; candidate: Candidate };
@@ -1223,7 +1224,9 @@ export function CompanyDashboard() {
                       <div key={s.id} className={styles.sessionCard}>
                         <span className={styles.sessionStatus}>
                           <i className={s.status === 'completed' || s.health === 'connected' || s.health === 'healthy' ? styles.healthy : styles.warning}/>
-                          <b>{s.status === 'completed' ? 'Completed · analysis ready' : s.status.replace('_', ' ')}</b>
+                          <b>{s.status === 'completed'
+                            ? s.endReason === 'camera_absence' ? 'Ended after camera absence · human review' : 'Completed · analysis ready'
+                            : s.status.replace('_', ' ')}</b>
                           <small>{new Date(s.startedAt).toLocaleString()}</small>
                         </span>
                         {s.status === 'completed' && (

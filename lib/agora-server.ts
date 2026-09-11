@@ -9,6 +9,8 @@ import {
   DeepgramSTT,
   ExpiresIn,
   GenericAvatar,
+  generateConvoAIToken,
+  SpeakPriorityInterrupt,
 } from 'agora-agents';
 import { DEFAULT_AGENT_UID, DEFAULT_AVATAR_UID } from '@/lib/agora';
 import { DEMO_OPENING_QUESTION } from '@/lib/interview-demo';
@@ -183,4 +185,32 @@ export async function stopInterviewAgent(agentId: string): Promise<void> {
     if (item.statusCode === 404 || detail.includes('already in the process of shutting down')) return;
     throw error;
   }
+}
+
+export async function speakInterviewAgent(input: {
+  agentId: string;
+  channel: string;
+  agentUid: string;
+  text: string;
+}): Promise<void> {
+  const appId = requireAgoraEnv('NEXT_PUBLIC_AGORA_APP_ID');
+  const appCertificate = requireAgoraEnv('NEXT_AGORA_APP_CERTIFICATE');
+  const client = new AgoraClient({
+    area: resolveAgoraArea(),
+    appId,
+    appCertificate,
+  });
+  const token = generateConvoAIToken({
+    appId,
+    appCertificate,
+    channelName: input.channel,
+    uid: Number(input.agentUid),
+  });
+  await client.agents.speak({
+    appid: appId,
+    agentId: input.agentId,
+    text: input.text.slice(0, 512),
+    priority: SpeakPriorityInterrupt,
+    interruptable: false,
+  }, { headers: { Authorization: `agora token=${token}` } });
 }

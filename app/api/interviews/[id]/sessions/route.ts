@@ -13,6 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({
       sessions: await Promise.all(sessions.map(async (session) => {
         const invitation = await interviewStore.getInvitation(session.invitationId, company.organizationId);
+        const events = await interviewStore.listEvents(session.id);
         return {
         id: session.id,
         status: session.status,
@@ -21,6 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         completedAt: session.completedAt,
         jobCandidateId: invitation?.jobCandidateId ?? null,
         candidateName: invitation?.candidateName ?? null,
+        endReason: events.some((event) => event.type === 'camera.presence_timeout') ? 'camera_absence' : null,
         };
       })),
     });

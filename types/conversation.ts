@@ -1,4 +1,5 @@
 import type { RTMClient } from 'agora-rtm';
+import type { CameraPresenceStatus } from '@/lib/camera-presence';
 
 export interface AgoraTokenData {
   token: string;
@@ -39,9 +40,12 @@ export interface ConversationComponentProps {
   agoraData: AgoraTokenData;
   rtmClient: RTMClient;
   onTokenWillExpire: (uid: string) => Promise<AgoraRenewalTokens>;
-  onEndConversation: () => void;
+  onEndConversation: (reason?: 'candidate' | 'camera_absence') => void;
   compactDemo?: boolean;
   companionDemo?: boolean;
   candidateName?: string;
   panelRoleCount?: number;
+  cameraRequired?: boolean;
+  cameraStatus?: CameraPresenceStatus;
+  onEnableCamera?: () => Promise<void>;
 }

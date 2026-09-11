@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { InterviewWorkspace } from './InterviewWorkspace';
-import { LivenessCheck } from './LivenessCheck';
 
 type QuickstartConversationLayoutProps = {
   statusPanel: ReactNode;
@@ -20,6 +19,7 @@ type QuickstartConversationLayoutProps = {
   demoProgress?: { roles: string[]; answeredRoles: string[]; closing: boolean } | null;
   workspacePrompt?: string | null;
   panelFocus?: string | null;
+  cameraPresence?: ReactNode;
 };
 
 export function QuickstartConversationLayout({
@@ -36,6 +36,7 @@ export function QuickstartConversationLayout({
   activePhase = 'introduction',
   panelFocus,
   workspacePrompt,
+  cameraPresence,
 }: QuickstartConversationLayoutProps) {
   const requestedWorkspace = activeModality === 'code' || activeModality === 'canvas';
   const [minimized, setMinimized] = useState(false);
@@ -60,7 +61,7 @@ export function QuickstartConversationLayout({
         </div>
 
         <div className="flex items-center gap-2 md:pr-1">
-          {sessionId && <LivenessCheck sessionId={sessionId} />}
+          {cameraPresence}
           {requestedWorkspace && <Button variant="outline" size="sm" onClick={() => setMinimized((value) => !value)}>
             {minimized ? 'Open workspace' : 'Minimize workspace'}
           </Button>}

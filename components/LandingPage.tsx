@@ -17,6 +17,7 @@ import { QuickstartPreCallCard } from './QuickstartPreCallCard';
 import { RoundTableLoadingScreen } from './RoundTableLoadingScreen';
 import { Button } from './ui/button';
 import { PREPARATION_SECONDS } from '@/lib/interview-demo';
+import { useCameraPresence } from './useCameraPresence';
 
 // Dynamically import the ConversationComponent with ssr disabled
 const ConversationComponent = dynamic(() => import('./ConversationComponent'), {
@@ -118,6 +119,7 @@ export default function LandingPage({
   const companionDemo = variant === 'companion-demo';
   const embeddedDemo = compactDemo || companionDemo;
   const [showConversation, setShowConversation] = useState(false);
+  const camera = useCameraPresence(Boolean(invitationToken));
 
   // Preload heavy modules on mount so they're already cached when the user
   // clicks "Try it Now" — eliminates the ~1.8s dynamic-import delay.
@@ -168,6 +170,10 @@ export default function LandingPage({
 
   const handleStartConversation = async () => {
     if (startInFlightRef.current) return;
+    if (invitationToken && camera.status !== 'present') {
+      setError('A clearly visible face is required before entering the interview.');
+      return;
+    }
     startInFlightRef.current = true;
     setIsLoading(true);
     setError(null);
@@ -349,14 +355,18 @@ export default function LandingPage({
     [agoraData],
   );
 
-  const handleEndConversation = async () => {
+  const handleEndConversation = async (reason: 'candidate' | 'camera_absence' = 'candidate') => {
     if (endInFlightRef.current) return;
     endInFlightRef.current = true;
     setIsEnding(true);
     if (agoraData?.sessionId) {
       try {
         await fetch(`/api/sessions/${agoraData.sessionId}/stop`, { method: 'POST' });
-        await fetch(`/api/sessions/${agoraData.sessionId}/finalize`, { method: 'POST' });
+        await fetch(`/api/sessions/${agoraData.sessionId}/finalize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endReason: reason }),
+        });
         setCompleted(true);
       } catch (stopError) {
         console.error('Failed to finalize interview:', stopError);
@@ -384,6 +394,7 @@ export default function LandingPage({
     rtmClient?.logout().catch((err) => console.error('RTM logout error:', err));
     setRtmClient(null);
     setShowConversation(false);
+    camera.stop();
     endInFlightRef.current = false;
     setIsEnding(false);
   };
@@ -455,6 +466,11 @@ export default function LandingPage({
                   onConsentChange={setConsent}
                   candidateName={candidateName}
                   onCandidateNameChange={setCandidateName}
+                  cameraRequired={Boolean(invitationToken)}
+                  cameraStatus={camera.status}
+                  cameraStream={camera.stream}
+                  cameraError={camera.error}
+                  onEnableCamera={camera.start}
                 />
               )
             )
@@ -480,6 +496,9 @@ export default function LandingPage({
                       companionDemo={companionDemo}
                       candidateName={candidateName}
                       panelRoleCount={invitation?.panelRoles.length}
+                      cameraRequired={Boolean(invitationToken)}
+                      cameraStatus={camera.status}
+                      onEnableCamera={camera.start}
                     />
                   </AgoraProvider>
                 </ErrorBoundary>

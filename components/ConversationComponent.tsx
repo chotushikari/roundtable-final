@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Camera, Loader2 } from 'lucide-react';
 import AgoraRTC, {
   useRTCClient,
   useLocalMicrophoneTrack,
@@ -47,6 +48,7 @@ import { DigitalPanelStage } from './DigitalPanelStage';
 import { InterviewPreparationScreen } from './InterviewPreparationScreen';
 import type { ConversationComponentProps } from '@/types/conversation';
 import { DEMO_CLOSING, normalizeSpokenText, PREPARATION_SECONDS } from '@/lib/interview-demo';
+import { CAMERA_ABSENCE_END_MS, CAMERA_ABSENCE_PAUSE_MS } from '@/lib/camera-presence';
 
 // Cap the displayed issues list to avoid overwhelming the UI during a cascade of errors.
 const MAX_CONNECTION_ISSUES = 6;
@@ -102,6 +104,9 @@ export default function ConversationComponent({
   companionDemo = false,
   candidateName,
   panelRoleCount,
+  cameraRequired = false,
+  cameraStatus = 'idle',
+  onEnableCamera,
 }: ConversationComponentProps) {
   const agentUID = String(DEFAULT_AGENT_UID);
 
@@ -122,8 +127,16 @@ export default function ConversationComponent({
   const [serverDeadline, setServerDeadline] = useState<string | null>(null);
   const [pendingDemoQuestion, setPendingDemoQuestion] = useState<{ id: string; text: string } | null>(null);
   const [panelFocus, setPanelFocus] = useState<string | null>(null);
+  const [cameraPaused, setCameraPaused] = useState(false);
+  const [cameraAbsenceSeconds, setCameraAbsenceSeconds] = useState(0);
   const deliveredQuestionsRef = useRef(new Set<string>());
   const finishedAgentTurnsRef = useRef(new Set<number>());
+  const cameraMissingSinceRef = useRef<number | null>(null);
+  const cameraPausedRef = useRef(false);
+  const cameraWarningDeliveredRef = useRef(false);
+  const cameraWarningInFlightRef = useRef(false);
+  const cameraLastWarningAttemptRef = useRef(0);
+  const cameraEndTriggeredRef = useRef(false);
 
   const logEvent = useCallback((type: 'AGENT_STATE_CHANGED' | 'METRICS' | 'ERROR' | 'CONNECTION_STATE' | 'INTERRUPTED', payload: Record<string, unknown>) => {
     if (!agoraData.sessionId) return;
@@ -586,6 +599,7 @@ export default function ConversationComponent({
    * and break the MicButtonWithVisualizer Web Audio graph.
    */
   const handleMicToggle = useCallback(async () => {
+    if (cameraPausedRef.current) return;
     const next = !isEnabled;
     const track = localMicrophoneTrack;
     if (!track) {
@@ -617,8 +631,88 @@ export default function ConversationComponent({
   useClientEvent(client, 'token-privilege-will-expire', handleTokenWillExpire);
 
   const handleEndConversation = useCallback(async () => {
-    onEndConversation();
+    onEndConversation('candidate');
   }, [onEndConversation]);
+
+  const postCameraPresence = useCallback(async (action: 'paused' | 'restored' | 'timeout', payload: Record<string, unknown> = {}) => {
+    if (!agoraData.sessionId) return null;
+    const response = await fetch(`/api/sessions/${agoraData.sessionId}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'CAMERA_PRESENCE', payload: { action, ...payload } }),
+    });
+    if (!response.ok) throw new Error('Could not record camera presence state');
+    return response.json() as Promise<{ warningDelivered?: boolean }>;
+  }, [agoraData.sessionId]);
+
+  useEffect(() => {
+    if (!cameraRequired || compactDemo || companionDemo) return;
+    if (cameraStatus !== 'present') {
+      if (cameraMissingSinceRef.current === null) cameraMissingSinceRef.current = Date.now();
+      return;
+    }
+
+    const missingSince = cameraMissingSinceRef.current;
+    cameraMissingSinceRef.current = null;
+    setCameraAbsenceSeconds(0);
+    cameraEndTriggeredRef.current = false;
+    cameraWarningDeliveredRef.current = false;
+    cameraLastWarningAttemptRef.current = 0;
+    if (!cameraPausedRef.current) return;
+    cameraPausedRef.current = false;
+    setCameraPaused(false);
+    if (localMicrophoneTrack && isEnabled) void localMicrophoneTrack.setEnabled(true).catch(() => {});
+    void postCameraPresence('restored', {
+      missingAt: missingSince ? new Date(missingSince).toISOString() : undefined,
+      restoredAt: new Date().toISOString(),
+      durationMs: missingSince ? Date.now() - missingSince : 0,
+    }).catch(() => {});
+  }, [cameraRequired, cameraStatus, compactDemo, companionDemo, isEnabled, localMicrophoneTrack, postCameraPresence]);
+
+  useEffect(() => {
+    if (!cameraRequired || compactDemo || companionDemo || cameraStatus === 'present') return;
+    const tick = () => {
+      const missingSince = cameraMissingSinceRef.current ?? Date.now();
+      cameraMissingSinceRef.current = missingSince;
+      const elapsed = Date.now() - missingSince;
+      setCameraAbsenceSeconds(Math.floor(elapsed / 1_000));
+
+      if (elapsed >= CAMERA_ABSENCE_PAUSE_MS && !cameraPausedRef.current) {
+        cameraPausedRef.current = true;
+        setCameraPaused(true);
+        if (localMicrophoneTrack) void localMicrophoneTrack.setEnabled(false).catch(() => {});
+      }
+
+      if (cameraPausedRef.current
+        && !cameraWarningDeliveredRef.current
+        && !cameraWarningInFlightRef.current
+        && agoraData.sessionId
+        && Date.now() - cameraLastWarningAttemptRef.current >= 3_000) {
+        cameraWarningInFlightRef.current = true;
+        cameraLastWarningAttemptRef.current = Date.now();
+        void postCameraPresence('paused', { missingAt: new Date(missingSince).toISOString() })
+          .then((result) => { cameraWarningDeliveredRef.current = Boolean(result?.warningDelivered); })
+          .catch(() => {})
+          .finally(() => { cameraWarningInFlightRef.current = false; });
+      }
+
+      if (elapsed >= CAMERA_ABSENCE_END_MS && !cameraEndTriggeredRef.current) {
+        cameraEndTriggeredRef.current = true;
+        void postCameraPresence('timeout', {
+          missingAt: new Date(missingSince).toISOString(),
+          durationMs: elapsed,
+        }).catch(() => {}).finally(() => onEndConversation('camera_absence'));
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [agoraData.sessionId, cameraRequired, cameraStatus, compactDemo, companionDemo, localMicrophoneTrack, onEndConversation, postCameraPresence]);
+
+  useEffect(() => {
+    if (!cameraPaused || !localMicrophoneTrack) return;
+    void localMicrophoneTrack.setEnabled(false).catch(() => {});
+  }, [cameraPaused, localMicrophoneTrack]);
 
   useEffect(() => {
     // Start the session clock once the agent startup has completed, not while
@@ -762,6 +856,7 @@ export default function ConversationComponent({
       sessionId={agoraData.sessionId}
       timeRemainingSeconds={timeRemainingSeconds}
       demoProgress={demoProgress}
+      cameraPresence={cameraRequired ? <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-medium ${cameraStatus === 'present' ? 'border-emerald-900/70 bg-emerald-950/30 text-emerald-300' : 'border-amber-900/70 bg-amber-950/30 text-amber-200'}`}><Camera size={13}/>{cameraStatus === 'present' ? 'Camera present' : cameraPaused ? 'Interview paused' : 'Checking presence'}</span> : null}
       statusPanel={
         <ConnectionStatusPanel
           connectionState={connectionState}
@@ -822,6 +917,16 @@ export default function ConversationComponent({
       }
       onEndConversation={handleEndConversation}
     />
+    {cameraPaused && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/75 p-5 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-labelledby="camera-pause-title">
+      <section className="w-full max-w-md rounded-2xl border border-amber-900/60 bg-[#141310] p-6 text-center shadow-[0_30px_100px_rgba(0,0,0,.55)]">
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-amber-800/60 bg-amber-950/40 text-amber-300"><Camera size={22}/></span>
+        <h2 id="camera-pause-title" className="mt-5 text-xl font-semibold text-white">Please return to the camera</h2>
+        <p className="mt-2 text-sm leading-6 text-[#aaa69d]">The interview and microphone are paused. It resumes automatically as soon as your face is clearly visible again.</p>
+        <p className="mt-4 font-mono text-xs text-amber-200">Ending in {Math.max(0, Math.ceil((CAMERA_ABSENCE_END_MS / 1_000) - cameraAbsenceSeconds))} seconds if presence is not restored</p>
+        {(cameraStatus === 'unavailable' || cameraStatus === 'idle') && <button type="button" onClick={() => void onEnableCamera?.()} className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#426c55] bg-[#17251c] px-4 text-xs font-semibold text-[#d9f4e4] hover:bg-[#1d3024]"><Loader2 size={15}/>Reconnect camera</button>}
+        <a href="mailto:?subject=Request%20an%20alternate%20RoundTable%20interview%20format" className="mt-4 block text-xs text-[#85827b] underline-offset-4 hover:text-white hover:underline">Request an alternate interview format</a>
+      </section>
+    </div>}
     {preparationOverlay}
     </>
   );
