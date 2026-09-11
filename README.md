@@ -54,7 +54,8 @@ Apply every migration in [supabase/migrations](supabase/migrations) in filename 
 
 - `NEXT_PUBLIC_AGORA_APP_ID`, `NEXT_AGORA_APP_CERTIFICATE`
 - `APP_BASE_URL`
-- `SARVAM_API_KEY` (optional, server-only; enables Agora's native Sarvam TTS adapter with a supported delivery voice, default `anushka`; otherwise MiniMax remains the startup fallback)
+- `GRADIUM_API_KEY` plus `GRADIUM_TTS_VOICE_ID` (optional, server-only; enables Gradium TTS with one stable interview delivery voice). When five role IDs are configured, `GRADIUM_HIRING_MANAGER_VOICE_ID` is the default unless `GRADIUM_TTS_VOICE_ID` is set. The one-agent interview architecture does not swap voices mid-call.
+- `SARVAM_API_KEY` (optional, server-only fallback; enables Agora's native Sarvam TTS adapter with a supported delivery voice, default `anushka`; otherwise MiniMax remains the startup fallback)
 - `PROTOFACE_API_KEY`, `PROTOFACE_AVATAR_ID`, and `ENABLE_PROTOFACE_AVATAR=true` (optional, server-only experimental real talking-avatar publisher through Agora Generic Avatar; otherwise the local disclosed host visual remains)
 - `GROQ_API_KEY`, with optional `GROQ_EVALUATOR_MODEL`, `GROQ_SPEAKER_MODEL`, `GROQ_PLANNER_MODEL`, and `GROQ_ASSESSMENT_MODEL`
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`

@@ -1,4 +1,4 @@
-import { MiniMaxTTS, SarvamTTS } from 'agora-agents';
+import { GradiumTTS, MiniMaxTTS, SarvamTTS } from 'agora-agents';
 
 const MINIMAX_FALLBACK = {
   model: 'speech_2_6_turbo',
@@ -6,18 +6,36 @@ const MINIMAX_FALLBACK = {
 } as const;
 
 /**
- * Prefer Agora's native Sarvam adapter when it is configured. This is the
- * supported ConvoAI integration and avoids making a live agent depend on a
- * callback through the application's serverless runtime.
+ * Prefer Gradium when a server-only key and a selected voice are configured.
+ * The application intentionally runs one physical Agora agent for the whole
+ * interview, so this is one stable delivery voice rather than a browser-owned
+ * or mid-session role voice switch.
  *
- * `shubh` is a Bulbul v3 API voice but is not in Agora's currently supported
- * Sarvam voice list. Use the supported `anushka` delivery voice for a reliable
- * live interview; MiniMax remains the no-key startup fallback.
+ * Sarvam remains a native fallback for existing deployments, followed by the
+ * established MiniMax startup fallback when neither server-only provider is
+ * configured.
  */
 export function createInterviewTts(
   sarvamApiKey = process.env.SARVAM_API_KEY,
   speaker = process.env.SARVAM_TTS_VOICE?.trim() || 'anushka',
 ) {
+  // Keep the historical explicit Sarvam arguments usable in offline tests and
+  // existing integrations. Runtime callers provide no arguments, enabling the
+  // configured Gradium-first provider selection below.
+  if (arguments.length === 0) {
+    const gradiumKey = process.env.GRADIUM_API_KEY?.trim();
+    const gradiumVoiceId = process.env.GRADIUM_TTS_VOICE_ID?.trim()
+      || process.env.GRADIUM_HIRING_MANAGER_VOICE_ID?.trim();
+    if (gradiumKey && gradiumVoiceId) {
+      return new GradiumTTS({
+        apiKey: gradiumKey,
+        modelName: 'default',
+        voiceId: gradiumVoiceId,
+        sampleRate: 24_000,
+      });
+    }
+  }
+
   const key = sarvamApiKey?.trim();
   if (key) {
     return new SarvamTTS({

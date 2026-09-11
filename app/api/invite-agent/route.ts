@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
       appCertificate,
     });
 
-    // Pipeline: Deepgram (reseller) STT → OpenAI (reseller) LLM → MiniMax (reseller) TTS.
-    // Omit vendor API keys for supported models — AgentKit infers reseller presets on start (see Agora Console / billing).
+    // Pipeline: Deepgram (reseller) STT → OpenAI (reseller) LLM → shared Gradium/Sarvam/MiniMax TTS selector.
+    // The selector keeps one server-selected voice for the entire public demo.
     const agent = new Agent({
       client,
       instructions,
