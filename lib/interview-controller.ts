@@ -38,12 +38,15 @@ export function turnDedupeKey(sessionId: string, text: string, upstreamId?: stri
     .digest('hex');
 }
 
-export type CandidateConversationControl = 'pause' | 'repeat';
+export type CandidateConversationControl = 'pause' | 'repeat' | 'backchannel';
 
 export function classifyCandidateConversationControl(text: string): CandidateConversationControl | null {
   const normalized = text.trim().toLocaleLowerCase().replace(/[.!?]+$/g, '');
   const wordCount = normalized.split(/\s+/).filter(Boolean).length;
   if (wordCount > 18) return null;
+  if (/^(?:umm?|uh|uh-?huh|mhm|yeah|yes|ok|okay|right|i see|sure|make sense|makes sense|go on|got it|yep|yup)(?:[, ]*(?:umm?|uh|uh-?huh|mhm|yeah|yes|ok|okay|right|i see|sure|make sense|makes sense|go on|got it|yep|yup))*$/i.test(normalized)) {
+    return 'backchannel';
+  }
   if (/^(?:ok(?:ay)?[, ]*)?(?:i(?:'m| am) ready|ready now|let'?s continue|please continue)$/i.test(normalized)) return 'repeat';
   if (/\b(wait|hold on|one moment|give me (?:a|one) (?:moment|minute|second)|let me think|need (?:a|one) (?:moment|minute)|thinking)\b/i.test(normalized)) {
     return 'pause';
@@ -77,11 +80,15 @@ export async function processConversationControlTurn({
   const pendingQuestion = session.pendingQuestion
     ?.replace(/^\[interrupted\]\s*/i, '')
     .trim();
+  const wasInterrupted = session.pendingQuestion?.startsWith('[interrupted]');
+  
   const response = control === 'pause'
     ? 'Of course. Take your time. I will be here when you are ready.'
-    : pendingQuestion
-      ? `Of course. Let me repeat the question: ${pendingQuestion}`
-      : 'Of course. Please briefly introduce yourself and tell me about the experience most relevant to this role.';
+    : control === 'backchannel'
+      ? (pendingQuestion ? (wasInterrupted ? `As I was saying... ${pendingQuestion}` : 'Please continue.') : 'Please continue.')
+      : pendingQuestion
+        ? `Of course. Let me repeat the question: ${pendingQuestion}`
+        : 'Of course. Please briefly introduce yourself and tell me about the experience most relevant to this role.';
   await interviewStore.createTurn({
     sessionId: session.id,
     speaker: 'interviewer',
