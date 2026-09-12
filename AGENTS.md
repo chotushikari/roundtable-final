@@ -31,7 +31,7 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - UI components: `agora-agent-uikit` for visualizer, transcript, and mic controls
 - Server SDK: `agora-agents` for managed agent session startup
 - Product APIs: company interviews, signed invitations, sessions, artifacts, assessment release, MCP, and Agora webhooks live in `app/api`
-- Recruiter voice control: the company dashboard uses opt-in browser speech recognition (`en-IN`) to collect a job-to-private-link request in English or Hinglish. It calls the same authenticated APIs as typed workflow and must never send email/calendar actions without an explicit recruiter click.
+- Recruiter voice control: the company dashboard uses opt-in browser speech recognition (`en-IN`) to collect a job-to-private-link request in English or Hinglish. It calls the same authenticated APIs as typed workflow. Email delivery requires a connected Google account plus a separate spoken “confirm send”; calendar delivery remains click-only.
 - Job APIs: `app/api/jobs` provides CRUD for jobs, competencies, candidates, and job_candidate pipeline records; `lib/job-store.ts` is the Supabase-admin + in-memory-fallback store; `types/jobs.ts` holds the schemas. Company interview session listings may expose only the invitation-linked job-candidate ID/display name needed to open a completed report; never add transcript, assessment, score, resume, or workspace content to that listing.
 - Voice pipeline: Agora-managed Deepgram STT plus an authenticated RoundTable custom LLM/controller endpoint; server-only `GRADIUM_API_KEY` and a server-selected voice are required. Gradium is the sole delivery provider. One physical agent keeps the selected voice for the entire session; do not claim an automatic mid-session provider fallback.
 - Persistence and auth: Google-only Supabase Auth for interviewers, with one idempotently provisioned private organization per authenticated user; process-local memory is development/test fallback only
@@ -80,7 +80,7 @@ The sections below (Start Here, Patterns, Anti-Patterns, etc.) remain the canoni
 - `components/LandingPage.tsx`: session bootstrap, RTM setup, provider wiring, and conversation lifecycle.
 - `components/RoundTableExperience.tsx`: public pinned-scroll landing narrative, Three.js artifact, five-role transformation, compact voice sample, and cursor-aware companion.
 - `components/CompanyDashboard.tsx`: Google-only company auth, interview creation, recruiter-side resume attachment, explicit invitation copy or recruiter-reviewed Gmail/Calendar handoff, authenticated voice-to-private-link orchestration, and session pipeline. Browser handoffs must never silently send an email or create a calendar event.
-- `components/RecruiterVoiceControl.tsx` and `lib/recruiter-voice.ts`: opt-in browser voice input and conservative English/Hinglish job-to-link slot collection.
+- `components/RecruiterVoiceControl.tsx` and `lib/recruiter-voice.ts`: opt-in browser voice input and conservative English/Hinglish job-to-link slot collection; candidate email can be corrected before delivery and voice email requires recipient read-back plus confirmation.
 - `components/CompanyAnalysisPage.tsx`: separately routed authenticated completed-report loader and release flow.
 - `components/ConversationComponent.tsx`: RTC join, mic publication, `AgoraVoiceAI` init, transcript state, and renewals.
 - `components/QuickstartConversationLayout.tsx`: in-call header, transcript rail, and controls dock.

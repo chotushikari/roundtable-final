@@ -114,6 +114,7 @@
 .candidateCard{border:1px solid #252525;border-radius:10px;background:#181818;padding:14px;display:grid;gap:10px}
 .candidateCardTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .candidateInfo{display:grid;gap:3px}.candidateInfo strong{font-size:13px;color:#ddd}.candidateInfo span{font-size:11px;color:#777}
+.candidateEmailEdit{display:flex;align-items:center;gap:6px;min-width:min(100%,300px)}.candidateEmailEdit input{min-width:0;width:100%;border:1px solid #303a33;border-radius:6px;padding:6px 8px;color:#b6cdbc;background:#141a16;font:11px var(--font-manrope),Manrope,sans-serif;outline:0}.candidateEmailEdit input:focus{border-color:#3ecf8e80;box-shadow:0 0 0 3px #3ecf8e12}.candidateEmailEdit button{height:28px!important;padding:0 9px!important;font-size:10px!important}
 .stageBadge{padding:4px 8px;border-radius:99px;font:700 9px var(--font-ibm-plex-mono),monospace;text-transform:uppercase;white-space:nowrap;border:1px solid #333}
 .stage_draft{color:#888;border-color:#444}
 .stage_invited{color:#3ecf8e;border-color:#3ecf8e59;background:#3ecf8e12}

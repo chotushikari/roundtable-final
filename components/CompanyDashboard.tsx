@@ -146,6 +146,7 @@ export function CompanyDashboard() {
   // ── Add candidate form ───────────────────────────────────────────────────────
   const [candidateName, setCandidateName] = useState('');
   const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidateEmailDrafts, setCandidateEmailDrafts] = useState<Record<string, string>>({});
 
   // ── Invitation / resume per-candidate ───────────────────────────────────────
   const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({});
@@ -159,6 +160,7 @@ export function CompanyDashboard() {
   const [message, setMessage] = useState('');
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const recruiterVoiceDraft = useRef<RecruiterVoiceDraft>({});
+  const recruiterVoiceDelivery = useRef<{ jobCandidateId: string; candidate: Candidate; link: string } | null>(null);
 
   const accessToken = session?.access_token;
   const authHeaders: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
@@ -502,10 +504,53 @@ export function CompanyDashboard() {
     finally { setPendingAction(null); }
   }
 
+  async function saveCandidateEmail(jobCandidateId: string, candidate: Candidate) {
+    if (!selectedJobId) return;
+    const email = (candidateEmailDrafts[jobCandidateId] ?? candidate.email ?? '').trim();
+    if (!email) { setMessage('Enter a valid email address before saving.'); return; }
+    setPendingAction(`email:${jobCandidateId}`);
+    try {
+      const response = await fetch(`/api/jobs/${selectedJobId}/candidates/${jobCandidateId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders }, body: JSON.stringify({ email }),
+      });
+      const data = await response.json() as { candidate?: Candidate; error?: string };
+      if (!response.ok || !data.candidate) throw new Error(data.error ?? 'Could not update the candidate email');
+      setJobCandidates((current) => current.map((item) => item.id === jobCandidateId ? { ...item, candidate: data.candidate! } : item));
+      setCandidateEmailDrafts((current) => { const next = { ...current }; delete next[jobCandidateId]; return next; });
+      setMessage(`Email updated for ${data.candidate.fullName ?? 'candidate'}.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not update the candidate email'); }
+    finally { setPendingAction(null); }
+  }
+
   async function runRecruiterVoiceCommand(transcript: string): Promise<string> {
+    const normalized = transcript.trim().toLocaleLowerCase();
+    if (recruiterVoiceDelivery.current && /\b(?:confirm|yes|haan|haanji|send it|bhej do|bhejo)\b/i.test(normalized)) {
+      const delivery = recruiterVoiceDelivery.current;
+      recruiterVoiceDelivery.current = null;
+      if (!googleDeliveryToken) return 'Google delivery is not connected. Click Connect Google delivery once, then say send invitation again.';
+      const sent = await sendInvitationEmail(delivery.jobCandidateId, delivery.candidate, delivery.link);
+      return sent ? `Invitation sent to ${delivery.candidate.email}.` : 'The email could not be sent. Please use Review draft to send it manually.';
+    }
     const parsed = parseRecruiterVoiceCommand(transcript, recruiterVoiceDraft.current);
     recruiterVoiceDraft.current = parsed.draft;
-    if (parsed.reset) return 'Voice setup cleared. Kaunse role ke liye interview banana hai?';
+    if (parsed.reset) {
+      recruiterVoiceDelivery.current = null;
+      return 'Voice setup cleared. Kaunse role ke liye interview banana hai?';
+    }
+
+    if (/\b(?:send|email|mail|invite|invitation|bhejo|bhej do)\b/i.test(normalized)) {
+      const target = jobCandidates.find((item) => {
+        const nameMatch = parsed.draft.candidateName && item.candidate.fullName?.toLocaleLowerCase() === parsed.draft.candidateName.toLocaleLowerCase();
+        const emailMatch = parsed.draft.candidateEmail && item.candidate.email?.toLocaleLowerCase() === parsed.draft.candidateEmail.toLocaleLowerCase();
+        return Boolean(nameMatch || emailMatch);
+      }) ?? jobCandidates.find((item) => Boolean(inviteLinks[item.id]));
+      const link = target ? inviteLinks[target.id] : undefined;
+      if (!target || !link) return 'I need a ready invitation link first. Create the interview link, then ask me to send the invitation.';
+      if (!target.candidate.email) return `Please add ${target.candidate.fullName ?? 'the candidate'}’s email address before sending.`;
+      if (!googleDeliveryToken) return 'Google delivery is not connected. Click Connect Google delivery once, then say send invitation again.';
+      recruiterVoiceDelivery.current = { jobCandidateId: target.id, candidate: target.candidate, link };
+      return `I am ready to send the invitation to ${target.candidate.email}. Say “confirm send” to send it, or “cancel” to stop.`;
+    }
 
     const missing = missingRecruiterVoiceFields(parsed.draft);
     if (missing.length || !parsed.draft.wantsInterview) {
@@ -587,9 +632,9 @@ export function CompanyDashboard() {
       setRoleTitle(draft.jobTitle!);
       setSeniority(draft.seniority!);
       setActiveTab('candidates');
-      setMessage(`Private link is ready for ${draft.candidateName}. Review or copy it from Candidates; no email was sent automatically.`);
+      setMessage(`Interview created. Private link is ready for ${draft.candidateName}; review or copy it from Candidates.`);
       recruiterVoiceDraft.current = {};
-      return `Interview link ready for ${draft.candidateName}. I did not send an email automatically; review or copy the private link in Candidates.`;
+      return `Interview created and link ready for ${draft.candidateName}. Say “send invitation” when you want to email it.`;
     } finally {
       setPendingAction(null);
     }
@@ -677,15 +722,15 @@ export function CompanyDashboard() {
     setMessage('Opened a Google Calendar event with the candidate and secure interview link prefilled.');
   }
 
-  async function sendInvitationEmail(jcId: string, candidateData: Candidate, link: string) {
+  async function sendInvitationEmail(jcId: string, candidateData: Candidate, link: string): Promise<boolean> {
     if (!candidateData.email) {
       setMessage('Add the candidate’s email before sending an invitation.');
-      return;
+      return false;
     }
     const providerToken = googleDeliveryToken;
     if (!providerToken) {
       openGmailDraft(candidateData, link);
-      return;
+      return false;
     }
     setPendingAction(`send:${jcId}`);
     try {
@@ -697,11 +742,13 @@ export function CompanyDashboard() {
       });
       if (!response.ok) {
         openGmailDraft(candidateData, link);
-        return;
+        return false;
       }
       setMessage(`Invitation sent to ${candidateData.email}.`);
+      return true;
     } catch {
       openGmailDraft(candidateData, link);
+      return false;
     } finally {
       setPendingAction(null);
     }
@@ -1071,7 +1118,18 @@ export function CompanyDashboard() {
                           <div className={styles.candidateCardTop}>
                             <div className={styles.candidateInfo}>
                               <strong>{jc.candidate.fullName ?? '—'}</strong>
-                              <span>{jc.candidate.email ?? 'No email'}</span>
+                              <div className={styles.candidateEmailEdit}>
+                                <input
+                                  type="email"
+                                  aria-label={`Email for ${jc.candidate.fullName ?? 'candidate'}`}
+                                  value={candidateEmailDrafts[jc.id] ?? jc.candidate.email ?? ''}
+                                  onChange={(event) => setCandidateEmailDrafts((current) => ({ ...current, [jc.id]: event.target.value }))}
+                                  placeholder="candidate@example.com"
+                                />
+                                <Button type="button" size="sm" variant="outline" onClick={() => void saveCandidateEmail(jc.id, jc.candidate)} disabled={pendingAction === `email:${jc.id}`}>
+                                  {pendingAction === `email:${jc.id}` ? <LoaderCircle className={styles.spin} size={12}/> : 'Save'}
+                                </Button>
+                              </div>
                             </div>
                             <span className={`${styles.stageBadge} ${styles[stageColors[jc.stage] ?? '']}`}>{jc.stage.replace('_', ' ')}</span>
                           </div>

@@ -48,3 +48,19 @@ test('human decisions are recruiter-owned, append-only, and scoped to one job ca
   assert.deepEqual(new Set(history.map((item) => item.id)), new Set([first.id, second.id]));
   assert.deepEqual(new Set(history.map((item) => item.decision)), new Set(['needs_review', 'advance']));
 });
+
+test('a recruiter can correct a candidate email without changing the job candidate record', async () => {
+  resetJobStoreForTests();
+  const organizationId = crypto.randomUUID();
+  const job = await jobStore.createJob(organizationId, {
+    title: 'Backend Engineer', employmentType: 'full_time', jdText: '', hiringBar: {}, status: 'draft',
+  });
+  const candidate = await jobStore.upsertCandidate(organizationId, { fullName: 'Aditi Sharma', email: 'aditi@old.example' });
+  const bridge = await jobStore.getOrCreateJobCandidate(job.id, candidate.id, organizationId);
+  const updated = await jobStore.updateCandidateEmail(candidate.id, organizationId, 'aditi@new.example');
+  const listed = await jobStore.listJobCandidates(job.id, organizationId);
+
+  assert.equal(updated.email, 'aditi@new.example');
+  assert.equal(listed[0]?.id, bridge.id);
+  assert.equal(listed[0]?.candidate.email, 'aditi@new.example');
+});

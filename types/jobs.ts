@@ -50,6 +50,10 @@ export const CandidateStageSchema = z.object({
   stage: z.enum(JOB_CANDIDATE_STAGES),
 });
 
+export const CandidateEmailPatchSchema = z.object({
+  email: z.string().trim().email().max(320),
+});
+
 export const HUMAN_DECISIONS = ['advance', 'hold', 'decline', 'needs_review'] as const;
 export type HumanDecision = (typeof HUMAN_DECISIONS)[number];
 

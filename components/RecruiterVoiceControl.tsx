@@ -1,6 +1,6 @@
 'use client';
 
-import { Mic, MicOff, Volume2 } from 'lucide-react';
+import { LoaderCircle, Mic, MicOff, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
@@ -29,6 +29,7 @@ function speechRecognitionConstructor() {
 export function RecruiterVoiceControl({ onCommand }: { onCommand: (transcript: string) => Promise<string> }) {
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const [listening, setListening] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [feedback, setFeedback] = useState('Voice control: create a job and interview link in English or Hinglish.');
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
@@ -52,8 +53,10 @@ export function RecruiterVoiceControl({ onCommand }: { onCommand: (transcript: s
         .map((result) => result[0]?.transcript ?? '').join(' ').trim();
       if (!transcript) return;
       setFeedback(`Heard: “${transcript}”`);
+      setProcessing(true);
       try { setFeedback(await onCommand(transcript)); }
       catch { setFeedback('I could not complete that action. Your existing jobs were not changed. Please try again.'); }
+      finally { setProcessing(false); }
     };
     recognition.onerror = (event) => setFeedback(event.error === 'not-allowed'
       ? 'Microphone permission is required for voice control.'
@@ -68,9 +71,9 @@ export function RecruiterVoiceControl({ onCommand }: { onCommand: (transcript: s
   return (
     <div className="flex items-center gap-2" aria-live="polite">
       <p className="hidden max-w-72 text-xs text-muted-foreground lg:block">{feedback}</p>
-      <Button type="button" size="sm" variant={listening ? 'destructive' : 'outline'} onClick={toggleListening} aria-pressed={listening}>
-        {listening ? <MicOff size={14} /> : <Mic size={14} />}
-        {listening ? 'Stop' : 'Voice command'}
+      <Button type="button" size="sm" variant={listening ? 'destructive' : 'outline'} onClick={toggleListening} aria-pressed={listening} disabled={processing}>
+        {processing ? <LoaderCircle className="animate-spin" size={14} /> : listening ? <MicOff size={14} /> : <Mic size={14} />}
+        {processing ? 'Working…' : listening ? 'Stop' : 'Voice command'}
       </Button>
       {!listening && <Volume2 className="hidden text-muted-foreground lg:block" size={14} aria-hidden="true" />}
     </div>

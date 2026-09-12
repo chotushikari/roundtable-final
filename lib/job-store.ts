@@ -337,6 +337,25 @@ export const jobStore = {
     return candidateFromRow(data as Record<string, unknown>);
   },
 
+  async updateCandidateEmail(id: string, organizationId: string, email: string): Promise<CandidateRecord> {
+    const admin = getSupabaseAdmin();
+    if (!admin) {
+      const existing = mem().candidates.get(id);
+      if (!existing || existing.organizationId !== organizationId) throw new Error('Candidate not found');
+      const duplicate = [...mem().candidates.values()].find((candidate) => candidate.organizationId === organizationId && candidate.email === email && candidate.id !== id);
+      if (duplicate) throw new Error('Another candidate already uses this email');
+      const next = { ...existing, email, updatedAt: now() };
+      mem().candidates.set(id, next);
+      return next;
+    }
+    const { data, error } = await admin.from('candidates')
+      .update({ email, updated_at: now() })
+      .eq('id', id).eq('organization_id', organizationId)
+      .select('*').single();
+    throwDb(error, 'update candidate email');
+    return candidateFromRow(data as Record<string, unknown>);
+  },
+
   async getOrCreateJobCandidate(
     jobId: string,
     candidateId: string,
