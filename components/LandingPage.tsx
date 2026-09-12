@@ -198,14 +198,7 @@ export default function LandingPage({
         // when the managed agent starts.
         const agentStartPromise = responseData.agentId
           ? Promise.resolve({ ok: true, data: { agentId: responseData.agentId } })
-          : fetch(`/api/sessions/${responseData.sessionId}/start`, {
-            method: 'POST',
-            // This short-lived signed grant protects only the cookie-commit
-            // race during bootstrap. It is never persisted in the browser.
-            headers: responseData.sessionStartGrant
-              ? { Authorization: `Bearer ${responseData.sessionStartGrant}` }
-              : undefined,
-          })
+          : fetch(`/api/sessions/${responseData.sessionId}/start`, { method: 'POST' })
             .then(async (response) => ({ ok: response.ok, data: await response.json() }));
         const { default: AgoraRTM } = await import('agora-rtm');
         const rtm: RTMClient = new AgoraRTM.RTM(

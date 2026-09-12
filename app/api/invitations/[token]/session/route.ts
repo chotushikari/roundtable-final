@@ -90,7 +90,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       candidateNameProvided: Boolean(body.candidateName),
     }).catch((eventError) => console.error('[session] failed to append creation event', eventError));
     const interviewEndsAt = new Date(Date.parse(startedAt) + version.definition.durationMinutes * 60_000).toISOString();
-    const startGrantExpiresAt = new Date(Math.min(Date.parse(expiresAt), Date.now() + 5 * 60_000)).toISOString();
     const response = NextResponse.json({
       sessionId: id,
       channel: channelName,
@@ -101,7 +100,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       uid: rtcUid,
       agentUid: String(DEFAULT_AGENT_UID),
       agentId: null,
-      sessionStartGrant: createCandidateGrant(id, startGrantExpiresAt),
       expiresAt: tokenData.expiresAt,
       interviewEndsAt,
     }, { status: 201 });
