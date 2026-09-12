@@ -56,16 +56,6 @@ export async function respondToWorkspaceCommand(session: InterviewSessionRecord,
   const events = await interviewStore.listEvents(session.id);
   const cached = events.find((event) => event.type === 'workspace.voice_response' && event.payload.requestId === requestId);
   if (cached) return String(cached.payload.text);
-  if (utterance.trim()) {
-    await interviewStore.createTurn({
-      sessionId: session.id,
-      speaker: 'candidate',
-      speakerRole: null,
-      text: utterance.slice(0, 12_000),
-      status: 'final',
-      dedupeKey: `workspace-candidate:${requestId}`,
-    });
-  }
   let text: string;
   if (command === 'skip') {
     const attempts = events.filter((event) => event.type === 'workspace.attempt').length + 1;
@@ -124,14 +114,6 @@ export async function respondToWorkspaceCommand(session: InterviewSessionRecord,
         : 'Code execution is not part of this interview. Say check now and I will review the implementation you saved.';
     }
   }
-  await interviewStore.createTurn({
-    sessionId: session.id,
-    speaker: 'interviewer',
-    speakerRole: session.activeRole,
-    text,
-    status: 'final',
-    dedupeKey: `workspace-agent:${requestId}`,
-  });
   await interviewStore.appendEvent(session.id, 'workspace.voice_response', { requestId, command, text });
   return text;
 }
@@ -142,27 +124,11 @@ export async function respondToWorkspaceAttempt(session: InterviewSessionRecord,
   const cached = events.find((event) => event.type === 'workspace.voice_response' && event.payload.requestId === requestId);
   if (cached) return String(cached.payload.text);
   const attempts = events.filter((event) => event.type === 'workspace.attempt').length + 1;
-  await interviewStore.createTurn({
-    sessionId: session.id,
-    speaker: 'candidate',
-    speakerRole: null,
-    text: utterance.slice(0, 12_000),
-    status: 'final',
-    dedupeKey: `workspace-candidate:${requestId}`,
-  });
   await interviewStore.appendEvent(session.id, 'workspace.attempt', { requestId, kind: 'spoken_explanation', attempt: attempts, text: utterance.slice(0, 500) });
   const modality = session.currentModality === 'canvas' ? 'diagram' : 'code';
   const text = attempts >= 3
     ? `I heard your explanation and recorded your saved ${modality} as incomplete. If you cannot continue, say next please and I will move to the next perspective without claiming this task was complete.`
     : `I understand your approach. This is attempt ${attempts} of 3. Keep working from the task on screen; I can assess only saved ${modality}, not an explanation alone. Say next please if you want to leave it incomplete.`;
-  await interviewStore.createTurn({
-    sessionId: session.id,
-    speaker: 'interviewer',
-    speakerRole: session.activeRole,
-    text,
-    status: 'final',
-    dedupeKey: `workspace-agent:${requestId}`,
-  });
   await interviewStore.appendEvent(session.id, 'workspace.voice_response', { requestId, command: 'attempt', text });
   return text;
 }

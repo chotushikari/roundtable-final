@@ -4,7 +4,6 @@ import { startInterviewAgent, stopInterviewAgent } from '@/lib/agora-server';
 import { apiError } from '@/lib/http';
 import { interviewStore } from '@/lib/interview-store';
 import { createOpaqueToken, hashToken } from '@/lib/security';
-import { demoWelcome } from '@/lib/interview-demo';
 
 export const maxDuration = 60;
 
@@ -56,18 +55,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         candidateName: invitation?.candidateName,
         panelRoleCount: version.definition.panelRoles.length,
       });
-      // The managed agent speaks this greeting before any candidate turn. Keep
-      // the exact server-owned text in the durable transcript as well.
-      if (version.definition.demoMode) {
-        await interviewStore.createTurn({
-          sessionId: session.id,
-          speaker: 'interviewer',
-          speakerRole: version.definition.panelRoles.includes('hiring_manager') ? 'hiring_manager' : version.definition.panelRoles[0],
-          text: demoWelcome(invitation?.candidateName, version.definition.panelRoles.length),
-          status: 'final',
-          dedupeKey: `opening-greeting:${session.id}`,
-        });
-      }
       const fresh = (await interviewStore.getSession(id)) ?? session;
       if (fresh.status === 'completed' || fresh.status === 'failed') {
         await stopInterviewAgent(agentId).catch(() => {});
