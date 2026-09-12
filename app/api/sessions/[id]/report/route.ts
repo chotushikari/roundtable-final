@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (session.status !== 'completed') {
       return NextResponse.json({ session: { id: session.id, status: session.status }, report: null });
     }
-    const [loadedAssessment, version, invitation, turns, analyses, code, canvas, toolRuns] = await Promise.all([
+    const [loadedAssessment, version, invitation, turns, analyses, code, canvas, toolRuns, events] = await Promise.all([
       interviewStore.getAssessment(id),
       interviewStore.getInterviewVersion(session.interviewVersionId),
       interviewStore.getInvitation(session.invitationId),
@@ -23,6 +23,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       interviewStore.getArtifact(id, 'code'),
       interviewStore.getArtifact(id, 'canvas'),
       interviewStore.listToolRuns(id),
+      interviewStore.listEvents(id),
     ]);
     let assessment = loadedAssessment;
     if (!assessment || !version) throw new Error('Completed interview report is not available yet');
@@ -33,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       assessment = await interviewStore.getAssessment(id);
       if (!assessment) throw new Error('Completed interview report is not available yet');
     }
-    return NextResponse.json({ report: buildCompanyInterviewReport({ session, invitation, version, assessment, turns, analyses, artifacts: { code, canvas }, toolRuns }) });
+    return NextResponse.json({ report: buildCompanyInterviewReport({ session, invitation, version, assessment, turns, analyses, artifacts: { code, canvas }, toolRuns, events }) });
   } catch (error) {
     return apiError(error, 'Failed to load company interview report');
   }

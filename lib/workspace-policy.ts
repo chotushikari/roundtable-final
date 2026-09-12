@@ -16,7 +16,7 @@ export function demoWorkspaceQuestion(interview: InterviewDefinitionRecord, plan
   return {
     modality: scenario.modality as 'code' | 'canvas',
     objective: scenario.modality === 'code'
-      ? `I've opened the code editor. ${scenario.prompt} Choose Python, JavaScript, or TypeScript. Your work autosaves; say “review my code” or “check now” when you want feedback.`
-      : `I've opened the design canvas. ${scenario.prompt} Add and connect the key components. Your work autosaves; say “review my diagram” or “check now” when you want feedback.`,
+      ? `I've opened the code editor. ${scenario.prompt} Choose Python, JavaScript, or TypeScript. Your work autosaves; ask for feedback in your own words whenever you are ready.`
+      : `I've opened the design canvas. ${scenario.prompt} Add and connect the key components. Your work autosaves; ask for feedback in your own words whenever you are ready.`,
   };
 }

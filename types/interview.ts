@@ -430,6 +430,8 @@ export interface CompanyInterviewReport {
   unresolvedContradictions: FinalAssessment['unresolvedContradictions'];
   transcript: Array<Pick<TranscriptTurnRecord, 'id' | 'sequence' | 'speaker' | 'speakerRole' | 'text' | 'status' | 'createdAt'> & { evidenceReferences: string[]; adaptation: TurnAdaptation }>;
   workspace: {
+    status: 'not_attempted' | 'completed' | 'incomplete';
+    attempts: number;
     code: {
       available: boolean;
       version: number | null;
