@@ -10,7 +10,6 @@ import type {
   TurnAnalysisRecord,
   ToolRunRecord,
   WorkspaceArtifactRecord,
-  SessionEventRecord,
 } from '@/types/interview';
 
 function durationSeconds(startedAt: string, completedAt: string | null): number | null {
@@ -101,7 +100,6 @@ export function buildCompanyInterviewReport({
   analyses,
   artifacts,
   toolRuns,
-  events = [],
 }: {
   session: InterviewSessionRecord;
   invitation: InvitationRecord | null;
@@ -111,7 +109,6 @@ export function buildCompanyInterviewReport({
   analyses: TurnAnalysisRecord[];
   artifacts: { code: WorkspaceArtifactRecord | null; canvas: WorkspaceArtifactRecord | null };
   toolRuns: ToolRunRecord[];
-  events?: SessionEventRecord[];
 }): CompanyInterviewReport {
   const report = assessment.assessment;
   const evidence = evidenceByTurn(assessment, turns);
@@ -192,11 +189,7 @@ export function buildCompanyInterviewReport({
       evidenceReferences: evidence.get(turn.id) ?? [],
       adaptation: adaptationFor(turn),
     })),
-    workspace: {
-      status: events.some((event) => event.type === 'demo.workspace_completed') ? 'completed' : events.some((event) => event.type === 'demo.workspace_skipped') ? 'incomplete' : 'not_attempted',
-      attempts: events.filter((event) => event.type === 'workspace.attempt').length,
-      code: codeSummary(artifacts.code), canvas: canvasSummary(artifacts.canvas),
-    },
+    workspace: { code: codeSummary(artifacts.code), canvas: canvasSummary(artifacts.canvas) },
     integrations: {
       linear: {
         configuredIssue: version.definition.linearIssueIdentifier ?? null,

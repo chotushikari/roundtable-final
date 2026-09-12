@@ -113,7 +113,6 @@ export function CompanyInterviewReportView({ report, onRelease, releasePending =
         <div className="grid gap-6">
           {/* Top metadata summary cards */}
           <div className="grid gap-5 lg:grid-cols-2">
-            {report.workspace.status !== 'not_attempted' && <div className={`lg:col-span-2 rounded-xl border p-4 text-sm ${report.workspace.status === 'completed' ? 'border-[#345443] bg-[#3ecf8e0d] text-[#bde8ce]' : 'border-[#5c4a22] bg-[#eab75a0d] text-[#e5cb97]'}`}><strong>Workspace {report.workspace.status === 'completed' ? 'completed' : 'left incomplete'}</strong><span className="ml-2 text-xs opacity-80">{report.workspace.attempts} recorded {report.workspace.attempts === 1 ? 'attempt' : 'attempts'} · human review only</span></div>}
             <article className="rounded-xl border border-[#2b2b2b] bg-[#151515] p-6">
               <div className="flex items-center justify-between">
                 <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#3ecf8e12] text-[#3ecf8e]">

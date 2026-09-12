@@ -10,7 +10,7 @@ import {
 import { interviewStore } from '@/lib/interview-store';
 import { DEMO_CLOSING } from '@/lib/interview-demo';
 import { advanceDemoWorkspace, processDemoAnswer } from '@/lib/demo-turns';
-import { workspaceCommand, respondToWorkspaceAttempt, respondToWorkspaceCommand } from '@/lib/workspace-conversation';
+import { workspaceCommand, respondToWorkspaceCommand } from '@/lib/workspace-conversation';
 
 export const maxDuration = 60;
 
@@ -105,11 +105,12 @@ export async function POST(request: Request) {
       });
       return sseResponse(responseText);
     }
-    // A workspace explanation is contextual work, not a scored voice answer.
-    // Preserve it as a bounded attempt and let the candidate leave after up to
-    // three attempts; never pretend an unfinished artifact is complete.
+    // A workspace task is a mini-interview owned by its current role. A spoken
+    // explanation must not silently consume that role and advance the demo.
+    // The candidate explicitly says "continue" when they want the next role.
     if (version?.definition.demoMode && (session.currentModality === 'code' || session.currentModality === 'canvas')) {
-      return sseResponse(await respondToWorkspaceAttempt(session, contextId, answer));
+      const role = session.currentModality === 'code' ? 'Technical interviewer' : 'Product manager';
+      return sseResponse(`${role} here. I heard your explanation. Say check now for a grounded review, or say continue when you are ready for the next panel perspective.`);
     }
     if (version?.definition.demoMode) {
       return sseResponse(await processDemoAnswer({ session, answer, upstreamTurnId: contextId }));

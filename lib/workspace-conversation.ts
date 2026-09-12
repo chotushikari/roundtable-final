@@ -3,12 +3,11 @@ import type { InterviewSessionRecord } from '@/types/interview';
 import { advanceDemoWorkspace } from '@/lib/demo-turns';
 import { canvasReviewObservation, checkpointObservation, codeTaskReview } from '@/lib/workspace-observation';
 
-export type WorkspaceCommand = 'code' | 'canvas' | 'tests' | 'review' | 'help' | 'skip';
+export type WorkspaceCommand = 'code' | 'canvas' | 'tests' | 'review' | 'help';
 
 export function workspaceCommand(answer: string): WorkspaceCommand | null {
   if (answer.split(/\s+/).length > 20) return null;
   if (/\b(?:run|execute) (?:the |my )?tests\b/i.test(answer)) return 'tests';
-  if (/^(?:please )?(?:next|move on|skip)(?: (?:please|this|the task|this task))?[.! ]*$/i.test(answer)) return 'skip';
   if (/\b(?:open|show|switch to) (?:the |my )?(?:code editor|ide|editor)\b/i.test(answer)) return 'code';
   if (/\b(?:open|show|switch to) (?:the |my )?(?:canvas|whiteboard|diagram)\b/i.test(answer)) return 'canvas';
   if (/\b(?:review|check|see|look at) (?:the |my )?(?:code|diagram|canvas|checkpoint|design)(?: now)?\b/i.test(answer)) return 'review';
@@ -57,19 +56,7 @@ export async function respondToWorkspaceCommand(session: InterviewSessionRecord,
   const cached = events.find((event) => event.type === 'workspace.voice_response' && event.payload.requestId === requestId);
   if (cached) return String(cached.payload.text);
   let text: string;
-  if (command === 'skip') {
-    const attempts = events.filter((event) => event.type === 'workspace.attempt').length + 1;
-    await interviewStore.appendEvent(session.id, 'workspace.attempt', { requestId, kind: 'skip_requested', attempt: attempts });
-    if (attempts < 3) {
-      text = `That is okay. I have recorded attempt ${attempts} of 3. Try one small step, explain your approach, or say next please again when you are ready to leave this workspace task.`;
-    } else {
-      const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
-      const next = version?.definition.demoMode
-        ? await advanceDemoWorkspace({ session, upstreamTurnId: `workspace-skip:${requestId}`, outcome: 'skipped' })
-        : '';
-      text = `No problem. I will retain only the work you saved and mark this workspace task as incomplete for human review. ${next}`;
-    }
-  } else if (command === 'code' || command === 'canvas') {
+  if (command === 'code' || command === 'canvas') {
     const fresh = (await interviewStore.getSession(session.id))!;
     await interviewStore.updateSession(session.id, { currentModality: command, stateVersion: fresh.stateVersion + 1 }, fresh.stateVersion);
     text = `The ${command === 'code' ? 'code editor' : 'design canvas'} is open. I can review your autosaved work when you say check now.`;
@@ -115,20 +102,5 @@ export async function respondToWorkspaceCommand(session: InterviewSessionRecord,
     }
   }
   await interviewStore.appendEvent(session.id, 'workspace.voice_response', { requestId, command, text });
-  return text;
-}
-
-/** Record natural workspace explanations without treating them as scored answers. */
-export async function respondToWorkspaceAttempt(session: InterviewSessionRecord, requestId: string, utterance: string) {
-  const events = await interviewStore.listEvents(session.id);
-  const cached = events.find((event) => event.type === 'workspace.voice_response' && event.payload.requestId === requestId);
-  if (cached) return String(cached.payload.text);
-  const attempts = events.filter((event) => event.type === 'workspace.attempt').length + 1;
-  await interviewStore.appendEvent(session.id, 'workspace.attempt', { requestId, kind: 'spoken_explanation', attempt: attempts, text: utterance.slice(0, 500) });
-  const modality = session.currentModality === 'canvas' ? 'diagram' : 'code';
-  const text = attempts >= 3
-    ? `I heard your explanation and recorded your saved ${modality} as incomplete. If you cannot continue, say next please and I will move to the next perspective without claiming this task was complete.`
-    : `I understand your approach. This is attempt ${attempts} of 3. Keep working from the task on screen; I can assess only saved ${modality}, not an explanation alone. Say next please if you want to leave it incomplete.`;
-  await interviewStore.appendEvent(session.id, 'workspace.voice_response', { requestId, command: 'attempt', text });
   return text;
 }
