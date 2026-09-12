@@ -20,6 +20,7 @@ type QuickstartConversationLayoutProps = {
   workspacePrompt?: string | null;
   panelFocus?: string | null;
   cameraPresence?: ReactNode;
+  workspaceOverlay?: ReactNode;
 };
 
 export function QuickstartConversationLayout({
@@ -37,6 +38,7 @@ export function QuickstartConversationLayout({
   panelFocus,
   workspacePrompt,
   cameraPresence,
+  workspaceOverlay,
 }: QuickstartConversationLayoutProps) {
   const requestedWorkspace = activeModality === 'code' || activeModality === 'canvas';
   const [minimized, setMinimized] = useState(false);
@@ -122,6 +124,7 @@ export function QuickstartConversationLayout({
           </section>
         )}
       </div>
+      {workspaceOverlay}
     </div>
   );
 }

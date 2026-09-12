@@ -8,11 +8,10 @@ import {
   CustomLLM,
   DeepgramSTT,
   ExpiresIn,
-  GenericAvatar,
   generateConvoAIToken,
   SpeakPriorityInterrupt,
 } from 'agora-agents';
-import { DEFAULT_AGENT_UID, DEFAULT_AVATAR_UID } from '@/lib/agora';
+import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import { DEMO_OPENING_QUESTION } from '@/lib/interview-demo';
 import { createInterviewTts } from '@/lib/interview-tts';
 import { resolvePublicBaseUrl } from '@/lib/public-url';
@@ -58,23 +57,6 @@ function resolveAgoraArea(): AgoraArea {
   if (envArea === 'CN') return Area.CN;
   if (envArea === 'AP') return Area.AP;
   return Area.US;
-}
-
-function getProtofaceAvatarConfig(): { apiKey: string; avatarId: string; apiBaseUrl: string } | null {
-  // The avatar publisher is a progressive enhancement. Keep it opt-in until
-  // the provider has been validated for this Agora project; voice must never
-  // depend on a third-party visual track.
-  if (process.env.ENABLE_PROTOFACE_AVATAR !== 'true') return null;
-  const apiKey = process.env.PROTOFACE_API_KEY?.trim();
-  const avatarId = process.env.PROTOFACE_AVATAR_ID?.trim();
-  if (!apiKey || !avatarId) return null;
-  return {
-    apiKey,
-    avatarId,
-    // Protoface's Generic Avatar adapter expects the Agora base URL to end in
-    // a slash. It appends its operation path to this value internally.
-    apiBaseUrl: `${(process.env.PROTOFACE_AGORA_BASE_URL?.trim() || 'https://api.protoface.com/v1/agora/').replace(/\/+$/, '')}/`,
-  };
 }
 
 export async function startInterviewAgent({
@@ -140,23 +122,10 @@ export async function startInterviewAgent({
     }))
     .withTts(createInterviewTts());
 
-  // Protoface implements Agora's GenericAvatar contract. When configured it
-  // publishes an actual talking-avatar video track into this same RTC channel.
-  // The voice agent, controller, transcript, and assessment remain unchanged.
-  const avatar = getProtofaceAvatarConfig();
   console.info('[agora] interview agent starting', {
     sessionId,
-    avatarEnabled: Boolean(avatar),
     ttsProvider: 'gradium',
   });
-  if (avatar) {
-    agent = agent.withAvatar(new GenericAvatar({
-      apiKey: avatar.apiKey,
-      apiBaseUrl: avatar.apiBaseUrl,
-      avatarId: avatar.avatarId,
-      agoraUid: String(DEFAULT_AVATAR_UID),
-    }));
-  }
 
   const session = agent.createSession({
     channel,

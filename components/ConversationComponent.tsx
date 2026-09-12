@@ -24,7 +24,7 @@ import {
   type AgentTranscription,
 } from 'agora-agent-client-toolkit';
 import { MicButtonWithVisualizer } from './MicButtonWithVisualizer';
-import { DEFAULT_AGENT_UID, DEFAULT_AVATAR_UID } from '@/lib/agora';
+import { DEFAULT_AGENT_UID } from '@/lib/agora';
 import {
   getCurrentInProgressMessage,
   getMessageList,
@@ -44,9 +44,8 @@ import {
   type QuickstartAgentMetric,
 } from './QuickstartPipelineMetrics';
 import { QuickstartTranscriptPanel } from './QuickstartTranscriptPanel';
-import { DigitalPanelStage } from './DigitalPanelStage';
+import { RoundTablePanel } from './RoundTablePanel';
 import { AvatarOverlay } from './AvatarOverlay';
-import { useAvatarPresentation } from '@/hooks/useAvatarPresentation';
 import { InterviewPreparationScreen } from './InterviewPreparationScreen';
 import type { ConversationComponentProps } from '@/types/conversation';
 import { DEMO_CLOSING, normalizeSpokenText, PREPARATION_SECONDS } from '@/lib/interview-demo';
@@ -122,6 +121,7 @@ export default function ConversationComponent({
   const [activeRole, setActiveRole] = useState('technical');
   const [workspacePrompt, setWorkspacePrompt] = useState<string | null>(null);
   const [activePhase, setActivePhase] = useState('introduction');
+  const workspaceActive = activeModality === 'code' || activeModality === 'canvas';
   const [timeRemainingSeconds, setTimeRemainingSeconds] = useState<number | null>(null);
   const autoEndTriggeredRef = useRef(false);
   const interruptedTurnIdsRef = useRef(new Set<number>());
@@ -145,15 +145,6 @@ export default function ConversationComponent({
   >([]);
   const [agentState, setAgentState] = useState<AgentState | null>(null);
   const [agentMetrics, setAgentMetrics] = useState<QuickstartAgentMetric[]>([]);
-
-  const avatarState = useAvatarPresentation({
-    sessionId: agoraData.sessionId,
-    activeRole,
-    activePhase,
-    currentModality: activeModality,
-    agentState,
-    tavusEnabled: process.env.NEXT_PUBLIC_TAVUS_ENABLED === 'true',
-  });
 
   const logEvent = useCallback((type: 'AGENT_STATE_CHANGED' | 'METRICS' | 'ERROR' | 'CONNECTION_STATE' | 'INTERRUPTED', payload: Record<string, unknown>) => {
     if (!agoraData.sessionId) return;
@@ -583,35 +574,21 @@ export default function ConversationComponent({
     return () => window.clearInterval(timer);
   }, [compactDemo, companionDemo]);
 
-  // Ensure remote audio tracks (e.g. AI agent) are played.
-  // During Tavus mode, mute Agora agent audio volume to eliminate double TTS and audio mismatch.
+  // The Agora agent is the only audio source. Presentation never changes volume.
   useEffect(() => {
     remoteUsers.forEach((user) => {
       if (user.audioTrack) {
-        if (avatarState.mode === 'tavus') {
-          user.audioTrack.setVolume(0);
-        } else {
-          user.audioTrack.setVolume(100);
-          if (!user.audioTrack.isPlaying) {
-            try {
-              void user.audioTrack.play();
-            } catch {
-              // ignore autoplay restrictions until user interacts
-            }
+        user.audioTrack.setVolume(100);
+        if (!user.audioTrack.isPlaying) {
+          try {
+            void user.audioTrack.play();
+          } catch {
+            // ignore autoplay restrictions until user interacts
           }
         }
       }
     });
-  }, [remoteUsers, avatarState.mode]);
-
-  // The Generic Avatar is a separate RTC publisher. Subscribe explicitly to
-  // its video track so `DigitalPanelStage` can mount the real video rather
-  // than falling back to the local disclosed host visual.
-  useEffect(() => {
-    const avatar = remoteUsers.find((user) => String(user.uid) === String(DEFAULT_AVATAR_UID));
-    if (!avatar || !avatar.hasVideo || avatar.videoTrack) return;
-    void client.subscribe(avatar, 'video').catch(() => {});
-  }, [client, remoteUsers]);
+  }, [remoteUsers]);
 
   useClientEvent(client, 'connection-state-change', (curState) => {
     setConnectionState(curState);
@@ -912,6 +889,7 @@ export default function ConversationComponent({
       timeRemainingSeconds={timeRemainingSeconds}
       demoProgress={demoProgress}
       cameraPresence={cameraRequired ? <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-medium ${cameraStatus === 'present' ? 'border-emerald-900/70 bg-emerald-950/30 text-emerald-300' : 'border-amber-900/70 bg-amber-950/30 text-amber-200'}`}><Camera size={13}/>{cameraStatus === 'present' ? 'Camera present' : cameraPaused ? 'Interview paused' : 'Checking presence'}</span> : null}
+      workspaceOverlay={<AvatarOverlay role={activeRole} agentState={agentState} isVisible={workspaceActive} />}
       statusPanel={
         <ConnectionStatusPanel
           connectionState={connectionState}
@@ -935,20 +913,7 @@ export default function ConversationComponent({
           role="region"
           aria-label="AI agent status visualization"
         >
-          <AvatarOverlay
-            role={activeRole}
-            agentState={agentState}
-            isVisible={avatarState.isCanvasVisible}
-          />
-          <DigitalPanelStage
-            role={activeRole}
-            state={visualizerState}
-            currentUtterance={currentInProgressMessage ? String(currentInProgressMessage.text) : undefined}
-            avatarVideoTrack={remoteUsers.find((user) => String(user.uid) === String(DEFAULT_AVATAR_UID))?.videoTrack}
-            presentationMode={avatarState.mode}
-            tavusConversationUrl={avatarState.tavusConversationUrl}
-            isTransitioning={avatarState.isTransitioning}
-          />
+          <RoundTablePanel role={activeRole} state={visualizerState} currentUtterance={currentInProgressMessage ? String(currentInProgressMessage.text) : undefined} />
           {remoteUsers.map((user) => (
             <div key={user.uid} className="hidden">
               {typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}

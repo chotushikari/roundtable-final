@@ -317,8 +317,17 @@ html {
   animation: panel-avatar-speaking 900ms ease-in-out infinite;
 }
 
+.roundtable-connection { stroke: rgba(139, 178, 154, .28); stroke-width: .32; }
+.roundtable-connection-active { stroke: rgba(88, 227, 159, .9); stroke-width: .58; filter: drop-shadow(0 0 2px rgba(68, 235, 151, .8)); }
+.roundtable-signal { fill: #62ebb1; filter: drop-shadow(0 0 2px rgba(92, 241, 178, .95)); }
+@keyframes roundtable-node-active { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.045); } }
+@keyframes roundtable-node-leaving { from { opacity: 1; } to { opacity: .45; } }
+.roundtable-node-active { animation: roundtable-node-active 1.8s ease-in-out infinite; }
+.roundtable-node-leaving { animation: roundtable-node-leaving 700ms ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
-  .panel-avatar-speaking { animation: none; }
+  .panel-avatar-speaking, .roundtable-node-active, .roundtable-node-leaving { animation: none; }
+  .roundtable-signal { display: none; }
   html { scroll-behavior: auto; }
   .roundtable-loading__mark span, .roundtable-loading__bar i { animation: none; }
 }
