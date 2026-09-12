@@ -1,6 +1,6 @@
 # Testing
 
-Workspace regression checks required-code versus design scenarios and voice-command classification. Live rehearsal must also verify animated automatic opening, reduced motion, compact audio controls, draft retention across minimization, autosaved voice review, high-contrast/clickable canvas controls, and E2B result delivery. E2B runs functional cases for selected demo tasks and syntax/runtime validation for unknown questions.
+Workspace regression checks required-code versus design scenarios and voice-command classification. Recruiter voice tests cover English/Hinglish job, seniority, candidate name, and spoken-email collection, including multi-turn clarification before any mutation. Live rehearsal must also verify animated automatic opening, reduced motion, compact audio controls, draft retention across minimization, autosaved voice review, high-contrast/clickable canvas controls, and E2B result delivery. E2B runs functional cases for selected demo tasks and syntax/runtime validation for unknown questions.
 
 Run `npm test`, `npm run lint`, `npm run typecheck`, `npm run verify:api`, and `npm run build`. `npm run verify` additionally requires a complete `.env.local` through `doctor`.
 

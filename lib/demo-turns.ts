@@ -30,7 +30,7 @@ export function mergeAnswerFragments(fragments: string[]): string {
 }
 
 export function isIncompleteDemoAnswer(answer: string, role: string): boolean {
-  if (/^(?:please )?(?:skip(?: this(?: question)?)?|pass|continue(?: (?:now|please|for(?: the)? next panel(?: perspective)?))?|next(?: question)?|i (?:don't|do not) know)[.! ]*$/i.test(answer)
+  if (/^(?:please )?(?:skip(?: this(?: question)?)?|pass|continue(?: (?:now|please|for(?: the)? next panel(?: perspective)?))?|next(?: question)?|i (?:don't|do not) know|mujhe (?:nahi|nahin) (?:pata|maloom)|aage (?:badho|chalo)|agli question)[.! ]*$/i.test(answer)
     || /\b(that['’]s (?:all|my answer)|i['’]m done)\W*$/i.test(answer)) return false;
   const words = answer.trim().split(/\s+/);
   // Complete short answers (for example, “Reduced latency”) should hand off

@@ -233,6 +233,12 @@ test('brief pause and repeat requests are handled as conversation controls', () 
   assert.equal(classifyCandidateConversationControl('I waited for the cache and then measured latency because the database was slow.'), null);
 });
 
+test('Hinglish pause and repeat controls preserve the interview state', () => {
+  assert.equal(classifyCandidateConversationControl('Ek minute, sochne do.'), 'pause');
+  assert.equal(classifyCandidateConversationControl('Question phir se bolo.'), 'repeat');
+  assert.equal(classifyCandidateConversationControl('Aage badho'), 'repeat');
+});
+
 test('the interview starts with background before role-specific panel questions', () => {
   const result = chooseNextDecision({
     session: session({ phase: 'introduction', consecutiveRoleTurns: 0 }),

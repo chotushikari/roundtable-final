@@ -10,7 +10,7 @@ export function workspaceCommand(answer: string): WorkspaceCommand | null {
   if (/\b(?:run|execute) (?:the |my )?tests\b/i.test(answer)) return 'tests';
   if (/\b(?:open|show|switch to) (?:the |my )?(?:code editor|ide|editor)\b/i.test(answer)) return 'code';
   if (/\b(?:open|show|switch to) (?:the |my )?(?:canvas|whiteboard|diagram)\b/i.test(answer)) return 'canvas';
-  if (/\b(?:review|check|see|look at) (?:the |my )?(?:code|diagram|canvas|checkpoint|design)(?: now)?\b/i.test(answer)) return 'review';
+  if (/\b(?:review|check|see|look at|dekho|dekhiye) (?:the |my )?(?:code|diagram|canvas|checkpoint|design)(?: now)?\b/i.test(answer)) return 'review';
   if (/\b(?:can you see|(?:i(?:'ve| have)? )?shared (?:the |my )?checkpoint)\b/i.test(answer)) return 'review';
   // Candidates commonly say this immediately after editing. Treat it as a
   // request to inspect the latest autosave, not as a scored answer.
@@ -19,7 +19,7 @@ export function workspaceCommand(answer: string): WorkspaceCommand | null {
   // Treat that harmless variant as a review request rather than an answer.
   if (/^(?:please |now )?(?:see|review|check)(?: (?:it|my (?:code|diagram|canvas|checkpoint)))?(?: (?:now|no))?(?:,? please)?[.! ]*$/i.test(answer)) return 'review';
   if (/\b(?:can i|may i|could i)\b.{0,30}\b(?:python|javascript|typescript|java script|type script)\b/i.test(answer)) return 'help';
-  if (/\b(?:how (?:should|do) i|give me (?:a )?hint|any (?:idea|hint)|what should i (?:draw|write|do)|help me (?:with|design|implement|draw))\b/i.test(answer)) return 'help';
+  if (/\b(?:how (?:should|do) i|give me (?:a )?hint|any (?:idea|hint)|what should i (?:draw|write|do)|help me (?:with|design|implement|draw)|kaise (?:karu|karoon|karna)|hint (?:do|de)|help (?:karo|kijiye))\b/i.test(answer)) return 'help';
   if (/^(?:i )?(?:understand|understood|got it|okay|ok)[.! ]*$/i.test(answer)) return 'help';
   return null;
 }

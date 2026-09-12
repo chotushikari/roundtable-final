@@ -50,7 +50,7 @@ function sseResponse(text: string): NextResponse {
 function isWorkspaceContinue(answer: string): boolean {
   const normalized = answer.trim().toLocaleLowerCase().replace(/[.!?]+$/g, '');
   if (normalized.split(/\s+/).filter(Boolean).length > 12) return false;
-  return /\b(?:continue|next question)(?:\s+(?:now|please|for(?:\s+the)?\s+next\s+panel(?:\s+perspective)?))?\b/.test(normalized);
+  return /\b(?:continue|next question|aage (?:badho|chalo)|agli question|next please)(?:\s+(?:now|please|for(?:\s+the)?\s+next\s+panel(?:\s+perspective)?))?\b/.test(normalized);
 }
 
 export async function POST(request: Request) {

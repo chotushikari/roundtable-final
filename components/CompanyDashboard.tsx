@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient, type Session } from '@supabase/supabase-js';
 import {
   Activity, ArrowLeft, ArrowRight, Briefcase, BriefcaseBusiness, Check,
@@ -14,6 +14,8 @@ import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
 import type { PanelRole } from '@/types/interview';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RecruiterVoiceControl } from '@/components/RecruiterVoiceControl';
+import { missingRecruiterVoiceFields, parseRecruiterVoiceCommand, recruiterVoicePrompt, type RecruiterVoiceDraft } from '@/lib/recruiter-voice';
 import styles from './CompanyDashboard.module.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -156,6 +158,7 @@ export function CompanyDashboard() {
   // ── UI feedback ──────────────────────────────────────────────────────────────
   const [message, setMessage] = useState('');
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const recruiterVoiceDraft = useRef<RecruiterVoiceDraft>({});
 
   const accessToken = session?.access_token;
   const authHeaders: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
@@ -499,6 +502,99 @@ export function CompanyDashboard() {
     finally { setPendingAction(null); }
   }
 
+  async function runRecruiterVoiceCommand(transcript: string): Promise<string> {
+    const parsed = parseRecruiterVoiceCommand(transcript, recruiterVoiceDraft.current);
+    recruiterVoiceDraft.current = parsed.draft;
+    if (parsed.reset) return 'Voice setup cleared. Kaunse role ke liye interview banana hai?';
+
+    const missing = missingRecruiterVoiceFields(parsed.draft);
+    if (missing.length || !parsed.draft.wantsInterview) {
+      return recruiterVoicePrompt(parsed.draft);
+    }
+
+    const draft = parsed.draft;
+    const headers = { 'Content-Type': 'application/json', ...authHeaders };
+    const requestJson = async <T,>(url: string, init: RequestInit) => {
+      const response = await fetch(url, init);
+      const data = await response.json() as T & { error?: string };
+      if (!response.ok) throw new Error(data.error ?? 'The voice request could not be completed');
+      return data;
+    };
+
+    setPendingAction('voice-command');
+    setMessage('Creating the job, interview plan, candidate, and private invitation link…');
+    try {
+      const jobData = await requestJson<{ job: Job }>('/api/jobs', {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          title: draft.jobTitle,
+          employmentType: draft.employmentType ?? (draft.seniority === 'intern' ? 'internship' : 'full_time'),
+          locationLabel: draft.location || undefined,
+          jdText: `${draft.seniority} ${draft.jobTitle} role. Voice-created recruiter workflow.`,
+        }),
+      });
+      const job = jobData.job;
+      const voiceCompetencies = [
+        ['role_fundamentals', 'Role fundamentals', `Practical fundamentals for a ${draft.seniority} ${draft.jobTitle}.`, 40],
+        ['problem_solving', 'Problem solving', 'Explain a clear approach, constraints, and trade-offs.', 35],
+        ['communication', 'Communication', 'Communicate decisions clearly for teammates and customers.', 25],
+      ];
+      const createdCompetencies = await Promise.all(voiceCompetencies.map(async ([key, name, description, weight]) => {
+        const data = await requestJson<{ competency: Competency }>(`/api/jobs/${job.id}/competencies`, {
+          method: 'POST', headers,
+          body: JSON.stringify({ competencyKey: key, name, description, weight }),
+        });
+        return data.competency;
+      }));
+      const interviewData = await requestJson<{ interview: Interview }>('/api/interviews', {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          title: `${draft.jobTitle} Showcase Interview`,
+          roleTitle: draft.jobTitle,
+          jdText: `${draft.seniority} ${draft.jobTitle}. Assess role fundamentals, problem solving, collaboration, and customer impact.`,
+          desiredOutcomes: ['Role fundamentals', 'Problem solving', 'Communication'],
+          mustAskQuestions: [],
+          panelRoles: DEMO_ROLES,
+          durationMinutes: DEMO_DURATION_MINUTES,
+          demoMode: true,
+          instructions: `Seniority expectation: ${draft.seniority}. Keep questions calibrated to this level.`,
+          jobId: job.id,
+        }),
+      });
+      await requestJson(`/api/interviews/${interviewData.interview.id}/plan`, { method: 'POST', headers, body: '{}' });
+      const candidateData = await requestJson<{ candidate: Candidate; jobCandidate: JobCandidate }>(`/api/jobs/${job.id}/candidates`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ fullName: draft.candidateName, email: draft.candidateEmail }),
+      });
+      const invitation = await requestJson<{ invitationUrl: string }>(`/api/interviews/${interviewData.interview.id}/publish`, {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          candidateName: candidateData.candidate.fullName ?? undefined,
+          candidateEmail: candidateData.candidate.email ?? undefined,
+          jobCandidateId: candidateData.jobCandidate.id,
+        }),
+      });
+      await requestJson(`/api/jobs/${job.id}/candidates/${candidateData.jobCandidate.id}`, {
+        method: 'PATCH', headers, body: JSON.stringify({ stage: 'invited' }),
+      });
+
+      setJobs((current) => [job, ...current]);
+      setSelectedJobId(job.id);
+      setCompetencies(createdCompetencies);
+      setInterviews([interviewData.interview]);
+      setJobCandidates([{ ...candidateData.jobCandidate, stage: 'invited', candidate: candidateData.candidate }]);
+      setInviteLinks({ [candidateData.jobCandidate.id]: invitation.invitationUrl });
+      setRoleTitle(draft.jobTitle!);
+      setSeniority(draft.seniority!);
+      setActiveTab('candidates');
+      setMessage(`Private link is ready for ${draft.candidateName}. Review or copy it from Candidates; no email was sent automatically.`);
+      recruiterVoiceDraft.current = {};
+      return `Interview link ready for ${draft.candidateName}. I did not send an email automatically; review or copy the private link in Candidates.`;
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   async function copyLink(id: string) {
     const url = inviteLinks[id];
     if (!url) return;
@@ -701,6 +797,7 @@ export function CompanyDashboard() {
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand}><i/> RoundTable AI</Link>
         <div className={styles.topActions}>
+          <RecruiterVoiceControl onCommand={runRecruiterVoiceCommand} />
           <span className={styles.userChip}>
             <span><b>{profileName}</b><small>Recruiter</small></span>
           </span>
