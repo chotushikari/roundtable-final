@@ -400,7 +400,7 @@ export default function LandingPage({
   };
 
   return (
-    <div className={compactDemo ? 'relative flex min-h-[20rem] flex-col bg-[#171717] text-[#ededed]' : companionDemo ? 'relative flex min-h-[4.5rem] flex-col bg-transparent text-[#ededed]' : `relative flex ${showConversation ? 'h-dvh overflow-hidden' : 'min-h-dvh overflow-y-auto'} flex-col bg-[#0d0d0d] text-[#ededed] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(rgba(255,255,255,.022)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.022)_1px,transparent_1px)] before:bg-[size:48px_48px]`}>
+    <div className={compactDemo ? 'relative flex min-h-[20rem] flex-col bg-[#171717] text-[#ededed]' : companionDemo ? 'relative flex min-h-[4.5rem] flex-col bg-transparent text-[#ededed]' : 'relative flex h-dvh min-h-screen flex-col overflow-hidden bg-[#0d0d0d] text-[#ededed] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(rgba(255,255,255,.022)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.022)_1px,transparent_1px)] before:bg-[size:48px_48px]'}>
       {!embeddedDemo && isInvitationLoading && <RoundTableLoadingScreen overlay label="Opening your interview" />}
       {!embeddedDemo && isEnding && <RoundTableLoadingScreen overlay label="Finalizing your interview" />}
       {/* Hero shell: either shows the pre-call CTA or swaps in the live conversation experience. */}
@@ -415,7 +415,7 @@ export default function LandingPage({
           className={`z-10 flex min-h-0 flex-1 flex-col ${
             showConversation
               ? 'h-full w-full max-w-none items-stretch gap-0 px-0 text-left'
-              : 'w-full max-w-none items-center justify-center px-4 py-4 text-center sm:py-8'
+              : 'w-full max-w-none items-center justify-center px-4 text-center'
           }`}
         >
           {!showConversation ? (

@@ -7,7 +7,7 @@ import { createClient, type Session } from '@supabase/supabase-js';
 import {
   Activity, ArrowLeft, ArrowRight, Briefcase, BriefcaseBusiness, Check,
   CalendarDays, CheckCircle2, ChevronRight, Clipboard, Clock3, FileText,
-  Link2, LoaderCircle, LogOut, Mail, MapPin, Plus, ShieldCheck,
+  Link2, LoaderCircle, LogOut, Mail, MapPin, Plus, RefreshCw, ShieldCheck,
   Sparkles, Tag, Upload, UserPlus, WandSparkles, X,
 } from 'lucide-react';
 import { DEMO_DURATION_MINUTES, DEMO_ROLES } from '@/lib/interview-demo';
@@ -127,7 +127,7 @@ export function CompanyDashboard() {
   const [decisionRationales, setDecisionRationales] = useState<Record<string, string>>({});
 
   // ── Active tab inside job detail ─────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'competencies' | 'blueprint' | 'candidates' | 'pipeline'>('candidates');
+  const [activeTab, setActiveTab] = useState<'competencies' | 'blueprint' | 'candidates' | 'pipeline' | 'compare'>('candidates');
 
   // ── Create job form ──────────────────────────────────────────────────────────
   const [showCreateJob, setShowCreateJob] = useState(false);
@@ -167,6 +167,7 @@ export function CompanyDashboard() {
 
   // ── UI feedback ──────────────────────────────────────────────────────────────
   const [message, setMessage] = useState('');
+  const [deliveryActivity, setDeliveryActivity] = useState<{ label: string; detail: string; kind: 'email' | 'calendar' } | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const accessToken = session?.access_token;
@@ -622,6 +623,7 @@ export function CompanyDashboard() {
       const result = await response.json() as { error?: { message?: string }; providerStatus?: number };
       if (!response.ok) throw new Error(result.error?.message ?? 'Google could not send the invitation.');
       setMessage(`Invitation sent to ${candidateData.email}.`);
+      setDeliveryActivity({ kind: 'email', label: 'Invitation sent', detail: `${candidateData.fullName ?? candidateData.email} was notified by email.` });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not send the invitation.');
     } finally {
@@ -666,6 +668,7 @@ export function CompanyDashboard() {
       const result = await response.json() as { error?: { message?: string } };
       if (!response.ok) throw new Error(result.error?.message ?? 'Google could not create the calendar event.');
       setMessage(`Calendar invitation created and sent to ${candidateData.email}.`);
+      setDeliveryActivity({ kind: 'calendar', label: 'Calendar invite sent', detail: `${candidateData.fullName ?? candidateData.email} received the interview event.` });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not create the calendar event.');
     } finally {
@@ -716,6 +719,11 @@ export function CompanyDashboard() {
       : jobCandidates.length === 0
         ? { tab: 'candidates' as const, label: 'Add candidate', detail: 'Create a private candidate record, then generate a single-use link.' }
         : { tab: 'pipeline' as const, label: 'Review pipeline', detail: 'Monitor completed interviews and open evidence reports for human review.' };
+  const completedSessionByCandidate = new Map(
+    sessions.filter((session) => session.status === 'completed' && session.jobCandidateId)
+      .map((session) => [session.jobCandidateId!, session]),
+  );
+
   // ─── Main dashboard ──────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
@@ -725,6 +733,7 @@ export function CompanyDashboard() {
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Overview</button>
           <button type="button" onClick={() => selectedJob && setActiveTab('candidates')} disabled={!selectedJob} aria-current={activeTab === 'candidates' ? 'page' : undefined}>Candidates</button>
           <button type="button" onClick={() => selectedJob && setActiveTab('pipeline')} disabled={!selectedJob} aria-current={activeTab === 'pipeline' ? 'page' : undefined}>Pipeline</button>
+          <button type="button" onClick={() => selectedJob && setActiveTab('compare')} disabled={!selectedJob} aria-current={activeTab === 'compare' ? 'page' : undefined}>Evidence</button>
         </nav>
         <div className={styles.topActions}>
           <span className={styles.userChip}>
@@ -741,10 +750,10 @@ export function CompanyDashboard() {
       <main className={styles.shell}>
         <section className={styles.commandHero}>
           <div className={styles.commandCopy}>
-            <span className={styles.eyebrow}>ROUND TABLE</span>
-            <h1>Hire with <em>ease.</em></h1>
-            <p>Set the hiring bar, interview candidates, and review the evidence in one calm workspace.</p>
-            <div className={styles.heroActions}><Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}><WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}</Button></div>
+            <span className={styles.eyebrow}>ROUND TABLE / RECRUITER OS</span>
+            <h1>Hire with signal,<br/><em>not noise.</em></h1>
+            <p>Shape the hiring bar, run an adaptive panel, and keep every decision anchored to evidence you can inspect.</p>
+            <div className={styles.heroActions}><Button variant="outline" onClick={() => void loadJobs()} disabled={pendingAction === 'load'}>{pendingAction === 'load' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} Refresh</Button><Button className={styles.heroPrimary} onClick={() => selectedJob ? setActiveTab('blueprint') : setShowCreateJob(true)}><WandSparkles size={15}/> {selectedJob ? 'Create interview' : 'Create job'}</Button></div>
           </div>
           <div className={styles.signalCard}>
             <div className={styles.signalLabel}><span><i/> Live workspace</span><small>{stats.candidates} candidates tracked</small></div>
@@ -761,6 +770,9 @@ export function CompanyDashboard() {
           <article className={styles.bentoCard}><Briefcase size={17}/><span className={styles.bentoLabel}>OPEN ROLES</span><strong>{stats.jobs}</strong><small>Hiring workspaces</small></article>
           <article className={styles.bentoCard}><UserPlus size={17}/><span className={styles.bentoLabel}>CANDIDATES</span><strong>{stats.candidates}</strong><small>Across this workspace</small></article>
           <article className={styles.bentoCard}><CheckCircle2 size={17}/><span className={styles.bentoLabel}>EVIDENCE READY</span><strong>{stats.completed}</strong><small>Ready for review</small></article>
+          <article className={`${styles.bentoCard} ${styles.bentoActivity}`}>
+            {deliveryActivity ? <><div className={styles.activityIcon}>{deliveryActivity.kind === 'email' ? <Mail size={17}/> : <CalendarDays size={17}/>}</div><span className={styles.bentoLabel}>DELIVERY CONFIRMED</span><strong>{deliveryActivity.label}</strong><p>{deliveryActivity.detail}</p></> : <><div className={styles.activityIcon}><ShieldCheck size={17}/></div><span className={styles.bentoLabel}>DELIVERY CENTER</span><strong>Candidate-ready invites</strong><p>Generate a private link, then deliver a polished email or calendar invite.</p></>}
+          </article>
         </section>
 
         {message && <div className={styles.notice} role="status"><Sparkles size={16}/><span>{message}</span></div>}
@@ -869,7 +881,7 @@ export function CompanyDashboard() {
 
                 {/* Tabs */}
                 <nav className={styles.tabs}>
-                  {(['competencies', 'blueprint', 'candidates', 'pipeline'] as const).map((tab, i) => (
+                  {(['competencies', 'blueprint', 'candidates', 'pipeline', 'compare'] as const).map((tab, i) => (
                     <button
                       key={tab}
                       className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
@@ -882,6 +894,9 @@ export function CompanyDashboard() {
                       )}
                       {tab === 'pipeline' && sessions.length > 0 && (
                         <span className={styles.tabBadge}>{sessions.length}</span>
+                      )}
+                      {tab === 'compare' && completedSessionByCandidate.size > 0 && (
+                        <span className={styles.tabBadge}>{completedSessionByCandidate.size}</span>
                       )}
                     </button>
                   ))}
@@ -1170,6 +1185,32 @@ export function CompanyDashboard() {
                 )}
 
                 {/* ── Tab: Pipeline ─────────────────────────────────── */}
+                {activeTab === 'compare' && (
+                  <div className={styles.tabPanel}>
+                    <div className={styles.compareIntro}>
+                      <div><strong>Candidate review</strong><span>Compare interview completion and your human decisions. Open evidence—not a generated ranking.</span></div>
+                      <span className={styles.compareGuard}><ShieldCheck size={13}/> Human review required</span>
+                    </div>
+                    {jobCandidates.length === 0 ? (
+                      <div className={styles.listEmpty}><span>Add candidates before starting a comparison.</span></div>
+                    ) : (
+                      <div className={styles.comparisonTable}>
+                        <div className={styles.comparisonHead}><span>Candidate</span><span>Interview evidence</span><span>Human decision</span><span/></div>
+                        {jobCandidates.map((jobCandidate) => {
+                          const completedSession = completedSessionByCandidate.get(jobCandidate.id);
+                          const latestDecision = decisionHistory[jobCandidate.id]?.[0];
+                          return <div key={jobCandidate.id} className={styles.comparisonRow}>
+                            <div className={styles.comparisonCandidate}><b>{(jobCandidate.candidate.fullName ?? jobCandidate.candidate.email ?? 'Candidate').slice(0, 1).toUpperCase()}</b><span><strong>{jobCandidate.candidate.fullName ?? 'Unnamed candidate'}</strong><small>{jobCandidate.stage.replace('_', ' ')}</small></span></div>
+                            <div className={styles.evidenceState}><i className={completedSession ? styles.evidenceReady : styles.evidencePending}/><span><strong>{completedSession ? 'Report ready' : 'Not completed'}</strong><small>{completedSession ? 'Transcript and artifact evidence available' : 'No completed interview evidence yet'}</small></span></div>
+                            <div className={styles.compareDecision}>{latestDecision ? <><strong>{latestDecision.decision.replace('_', ' ')}</strong><small>{new Date(latestDecision.decidedAt).toLocaleDateString()}</small></> : <><strong>Not recorded</strong><small>Decision remains with recruiter</small></>}</div>
+                            {completedSession ? <button className={styles.openEvidenceButton} onClick={() => router.push(`/company/analysis/${completedSession.id}`)}><FileText size={13}/> Open evidence</button> : <button className={styles.openEvidenceButton} onClick={() => setActiveTab('candidates')}><UserPlus size={13}/> Open candidate</button>}
+                          </div>;
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {activeTab === 'pipeline' && (
                   <div className={styles.tabPanel}>
                     <div className={styles.tabIntro}>

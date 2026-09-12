@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ArrowRight, Camera, CheckCircle2, Clock3, Loader2, ShieldCheck, Users, VideoOff } from 'lucide-react';
+import { ArrowRight, Camera, CheckCircle2, Clock3, Loader2, ShieldCheck, Sparkles, Users, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CameraPresenceStatus } from '@/lib/camera-presence';
 
@@ -38,8 +38,8 @@ export function QuickstartPreCallCard({ isLoading, error, onStartConversation, i
   const cameraReady = !cameraRequired || cameraStatus === 'present';
   const cameraBusy = cameraStatus === 'requesting' || cameraStatus === 'checking';
   return (
-    <div className="relative mx-auto grid max-h-[calc(100dvh-2rem)] w-[min(94vw,64rem)] animate-fade-up overflow-y-auto rounded-3xl border border-[#292929] bg-[#121212] shadow-[0_30px_100px_rgba(0,0,0,.45)] lg:max-h-[calc(100dvh-4rem)] lg:grid-cols-[1fr_.92fr] lg:overflow-hidden">
-      <section className="relative flex min-h-[25rem] flex-col justify-between overflow-hidden border-b border-[#292929] p-8 text-left lg:min-h-[38rem] lg:border-b-0 lg:border-r lg:p-11">
+    <div className="relative mx-auto grid w-[min(94vw,64rem)] animate-fade-up overflow-hidden rounded-3xl border border-[#292929] bg-[#121212] shadow-[0_30px_100px_rgba(0,0,0,.45)] lg:grid-cols-[1fr_.92fr]">
+      <section className="relative flex min-h-[38rem] flex-col justify-between overflow-hidden border-b border-[#292929] p-8 text-left lg:border-b-0 lg:border-r lg:p-11">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(62,207,142,.12),transparent_35%)]" />
         <div className="relative">
           {/* <span className="inline-flex items-center gap-2 rounded-full border border-[#2f493c] bg-[#3ecf8e0f] px-3 py-1.5 font-mono text-[10px] font-semibold tracking-[.12em] text-[#52d99b]"><Sparkles size={12} /> PRIVATE AI INTERVIEW</span> */}
@@ -55,7 +55,7 @@ export function QuickstartPreCallCard({ isLoading, error, onStartConversation, i
         </div>
       </section>
 
-      <section className="flex flex-col justify-start p-8 text-left lg:justify-center lg:p-11">
+      <section className="flex flex-col justify-center p-8 text-left lg:p-11">
         <span className="font-mono text-[10px] font-semibold tracking-[.12em] text-[#3ecf8e]">READY WHEN YOU ARE</span>
         <h2 className="mt-3 text-2xl font-medium tracking-[-.035em] text-white">Take your time. Answer naturally.</h2>
         <p className="mt-3 text-sm leading-6 text-[#7c7c7c]">Answer naturally and ask for a repeat or a hint whenever you need one. Your work autosaves during coding and design tasks.</p>
