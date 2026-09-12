@@ -45,17 +45,6 @@ const stageColors: Record<string, string> = {
   draft: 'stage_draft', invited: 'stage_invited', in_progress: 'stage_active',
   completed: 'stage_done', review: 'stage_review', withdrawn: 'stage_grey', archived: 'stage_grey',
 };
-const roleNames: Record<string, string> = {
-  hiring_manager: 'Hiring Manager', technical: 'Technical', product: 'Product Manager',
-  customer: 'Customer', behavioral: 'Behavioural',
-};
-const roleDescriptions: Record<PanelRole, string> = {
-  hiring_manager: 'role fit and ownership',
-  technical: 'implementation and trade-offs',
-  product: 'customer value and priorities',
-  customer: 'adoption and support reality',
-  behavioral: 'collaboration and learning',
-};
 const interviewTemplates = {
   backend: {
     label: 'Backend engineering',
@@ -406,14 +395,6 @@ export function CompanyDashboard() {
     } else if (durationMinutes === DEMO_DURATION_MINUTES) {
       setDurationMinutes(30);
     }
-  }
-
-  function togglePanelRole(role: PanelRole) {
-    if (interviewMode === 'showcase') return;
-    setPanelRoles((current) => {
-      if (current.includes(role)) return current.length > 2 ? current.filter((item) => item !== role) : current;
-      return [...current, role];
-    });
   }
 
   function applyTemplate(templateKey: keyof typeof interviewTemplates) {
@@ -915,29 +896,6 @@ export function CompanyDashboard() {
                       <strong>Interview blueprint</strong>
                       <span>Choose a finale-ready showcase or a role-specific adaptive interview. The server owns every handoff and assessment decision.</span>
                     </div>
-                    {interviews.length > 0 ? (
-                      <div className={styles.blueprintList}>
-                        {interviews.map((item) => (
-                          <Card key={item.id} className={styles.blueprintCard}>
-                            <div className={styles.blueprintCardInner}>
-                              <div>
-                                <strong>{item.title}</strong>
-                                <span>{item.roleTitle}</span>
-                                <span className={styles.bpDate}>{new Date(item.createdAt).toLocaleDateString()}</span>
-                              </div>
-                              <span className={`${styles.status} ${item.status === 'ready' ? styles.status_ready : ''}`}>{item.status}</span>
-                            </div>
-                            <div className={styles.roleChips}>
-                              {(item.panelRoles ?? DEMO_ROLES).map((r, i) => (
-                                <span key={r}><b>{i + 1}</b>{roleNames[r] ?? r}</span>
-                              ))}
-                            </div>
-                            <div className={styles.bpMeta}><Clock3 size={11}/> {item.durationMinutes ?? DEMO_DURATION_MINUTES} min · {item.demoMode ? 'finale showcase' : 'adaptive interview'}</div>
-                          </Card>
-                        ))}
-                        <p className={styles.bpNote}>To create a new blueprint for this job, fill the form below.</p>
-                      </div>
-                    ) : null}
                     <Card className={`${styles.panel} ${styles.inlineCard}`}>
                       <CardContent className={styles.form}>
                         <div className={styles.builderHeader}>
@@ -960,17 +918,8 @@ export function CompanyDashboard() {
                             <strong>Finale showcase</strong><span>Five perspectives · 10 min · one answer per role</span>
                           </button>
                           <button type="button" className={`${styles.modeCard} ${interviewMode === 'adaptive' ? styles.modeCardActive : ''}`} onClick={() => chooseInterviewMode('adaptive')}>
-                            <strong>Adaptive interview</strong><span>Choose 2–5 perspectives and a 5–90 min budget</span>
+                            <strong>Adaptive interview</strong><span>Five perspectives adapt to the evidence collected during the interview</span>
                           </button>
-                        </div>
-                        <div className={styles.panelBlock}>
-                          <span>Panel perspectives <small>{interviewMode === 'showcase' ? 'Showcase includes every role.' : 'Select at least two. The panel adapts by evidence gaps, not a timer.'}</small></span>
-                          <div className={styles.roleSelector}>{DEMO_ROLES.map((role) => {
-                            const selected = panelRoles.includes(role);
-                            return <button key={role} type="button" disabled={interviewMode === 'showcase'} onClick={() => togglePanelRole(role)} className={`${styles.roleOption} ${selected ? styles.roleOptionActive : ''}`} aria-pressed={selected}>
-                              <b>{selected ? <Check size={11}/> : ''}</b><span><strong>{roleNames[role]}</strong><small>{roleDescriptions[role]}</small></span>
-                            </button>;
-                          })}</div>
                         </div>
                         <label className={styles.durationControl}>
                           <span><Clock3 size={12}/> Time budget <b>{interviewMode === 'showcase' ? DEMO_DURATION_MINUTES : durationMinutes} min</b></span>

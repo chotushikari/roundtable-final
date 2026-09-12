@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ArrowRight, Camera, CheckCircle2, Clock3, Loader2, ShieldCheck, Sparkles, Users, VideoOff } from 'lucide-react';
+import { ArrowRight, Camera, CheckCircle2, Clock3, Loader2, ShieldCheck, Users, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CameraPresenceStatus } from '@/lib/camera-presence';
 
