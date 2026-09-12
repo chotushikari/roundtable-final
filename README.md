@@ -58,7 +58,7 @@ Apply every migration in [supabase/migrations](supabase/migrations) in filename 
 
 - `NEXT_PUBLIC_AGORA_APP_ID`, `NEXT_AGORA_APP_CERTIFICATE`
 - `APP_BASE_URL`
-- `GRADIUM_API_KEY` plus `GRADIUM_TTS_VOICE_ID` (required, server-only; enables the sole Gradium TTS delivery voice). `GRADIUM_TTS_URL` defaults to Gradium's streaming endpoint. When five role IDs are configured, `GRADIUM_HIRING_MANAGER_VOICE_ID` is the default unless `GRADIUM_TTS_VOICE_ID` is set. The one-agent interview architecture does not swap voices mid-call.
+- `GRADIUM_API_KEY` plus one Gradium voice ID (required, server-only). Configure `GRADIUM_HIRING_MANAGER_VOICE_ID`, `GRADIUM_TECHNICAL_VOICE_ID`, `GRADIUM_PRODUCT_VOICE_ID`, `GRADIUM_CUSTOMER_VOICE_ID`, and `GRADIUM_BEHAVIORAL_VOICE_ID` for a distinct server-owned voice per panel role. `GRADIUM_TTS_VOICE_ID` is a backwards-compatible fallback. `GRADIUM_TTS_URL` defaults to Gradium's streaming endpoint.
 - `DEEPGRAM_LANGUAGE=multi` (default; enables Nova-3 English/Hindi code switching). Set a single supported regional language code such as `bn`, `mr`, `ta`, or `te` for a fully regional-language interview.
 - `PROTOFACE_API_KEY`, `PROTOFACE_AVATAR_ID`, and `ENABLE_PROTOFACE_AVATAR=true` (optional, server-only experimental real talking-avatar publisher through Agora Generic Avatar; otherwise the local disclosed host visual remains)
 - `GROQ_API_KEY`, with optional `GROQ_EVALUATOR_MODEL`, `GROQ_SPEAKER_MODEL`, `GROQ_PLANNER_MODEL`, and `GROQ_ASSESSMENT_MODEL`

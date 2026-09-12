@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto';
 import { NextResponse } from 'next/server';
-import { stopInterviewAgent } from '@/lib/agora-server';
+import { stopInterviewAgents } from '@/lib/agora-server';
 import { finalizeSessionAssessment } from '@/lib/assessment';
 import { apiError } from '@/lib/http';
 import { interviewStore } from '@/lib/interview-store';
@@ -20,7 +20,11 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ accepted: true });
     await interviewStore.appendEvent(session.id, 'agora.webhook', { state: event.state, eventType: event.eventType });
     if (['STOPPED', 'FAILED', 'IDLE_TIMEOUT'].includes(String(event.state).toUpperCase()) && session.status === 'in_progress') {
-      if (session.agoraAgentId && event.state !== 'STOPPED') await stopInterviewAgent(session.agoraAgentId).catch(() => {});
+      if (session.agoraAgentId && event.state !== 'STOPPED') {
+        const events = await interviewStore.listEvents(session.id);
+        const pool = [...events].reverse().find((item) => item.type === 'session.agent_pool')?.payload.agentIds as Record<string, string> | undefined;
+        await stopInterviewAgents(pool ? Object.values(pool) : [session.agoraAgentId]).catch(() => {});
+      }
       await interviewStore.updateSession(session.id, { status: 'assessing', stateVersion: session.stateVersion + 1 }, session.stateVersion);
       await finalizeSessionAssessment(session.id);
     }
