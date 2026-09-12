@@ -1,4 +1,4 @@
-import { candidateCookieName, hashToken, verifyCandidateGrant } from '@/lib/security';
+import { bearerToken, candidateCookieName, hashToken, verifyCandidateGrant } from '@/lib/security';
 import { interviewStore } from '@/lib/interview-store';
 import type { InterviewSessionRecord } from '@/types/interview';
 
@@ -15,7 +15,11 @@ export async function requireCandidateSession(
   request: Request,
   expectedSessionId?: string,
 ): Promise<InterviewSessionRecord> {
-  const grant = verifyCandidateGrant(cookieValue(request, candidateCookieName()));
+  // The first agent-start request can occur before a freshly set HttpOnly
+  // cookie is visible to the browser's next fetch. A short-lived signed bearer
+  // grant closes that bootstrap race; the normal cookie remains preferred.
+  const grant = verifyCandidateGrant(cookieValue(request, candidateCookieName()))
+    ?? verifyCandidateGrant(bearerToken(request));
   if (!grant || (expectedSessionId && grant.sessionId !== expectedSessionId)) {
     throw new Error('Candidate session authentication is required');
   }
