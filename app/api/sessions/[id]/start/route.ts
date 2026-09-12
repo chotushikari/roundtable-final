@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireCandidateSession } from '@/lib/api-auth';
-import { startInterviewAgent, stopInterviewAgents } from '@/lib/agora-server';
+import { startInterviewAgent, stopInterviewAgent } from '@/lib/agora-server';
 import { apiError } from '@/lib/http';
 import { interviewStore } from '@/lib/interview-store';
 import { createOpaqueToken, hashToken } from '@/lib/security';
@@ -43,9 +43,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
     if (!version) throw new Error('Published interview plan not found');
     const invitation = await interviewStore.getInvitation(session.invitationId);
-    let agentIds: Record<string, string> = {};
+    let agentId: string | null = null;
     try {
-      agentIds = await startInterviewAgent({
+      agentId = await startInterviewAgent({
         sessionId: session.id,
         channel: session.channelName,
         rtcUid: session.rtcUid,
@@ -55,10 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         demoMode: version.definition.demoMode,
         candidateName: invitation?.candidateName,
         panelRoleCount: version.definition.panelRoles.length,
-        panelRoles: version.definition.panelRoles,
       });
-      const agentId = agentIds.hiring_manager ?? agentIds[version.definition.panelRoles[0]] ?? null;
-      if (!agentId) throw new Error('No interview role agents were started');
       // The managed agent speaks this greeting before any candidate turn. Keep
       // the exact server-owned text in the durable transcript as well.
       if (version.definition.demoMode) {
@@ -73,7 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       const fresh = (await interviewStore.getSession(id)) ?? session;
       if (fresh.status === 'completed' || fresh.status === 'failed') {
-        await stopInterviewAgents(Object.values(agentIds)).catch(() => {});
+        await stopInterviewAgent(agentId).catch(() => {});
         throw new Error('Session is no longer active');
       }
       // Authoritatively update session with agentId and move to in_progress.
@@ -84,16 +81,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         startedAt: fresh.startedAt || new Date().toISOString(),
         stateVersion: fresh.stateVersion + 1,
       });
-      await interviewStore.appendEvent(id, 'session.agent_pool', { agentIds }).catch(() => {});
       await interviewStore.appendEvent(id, 'session.started', { agentId }).catch(() => {});
       return NextResponse.json({ agentId, status: updated.status });
     } catch (error) {
-      console.error('[sessions/start] agent start failure:', { id, agentIds: Object.keys(agentIds), error });
+      console.error('[sessions/start] agent start failure:', { id, agentId, error });
       // Only stop the agent if the session did NOT transition to in_progress
-      if (Object.keys(agentIds).length) {
+      if (agentId) {
         const latest = await interviewStore.getSession(id).catch(() => null);
         if (latest?.status !== 'in_progress') {
-          await stopInterviewAgents(Object.values(agentIds)).catch(() => {});
+          await stopInterviewAgent(agentId).catch(() => {});
         }
       }
       const fresh = await interviewStore.getSession(id).catch(() => null);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireCandidateSession } from '@/lib/api-auth';
-import { stopInterviewAgents } from '@/lib/agora-server';
+import { stopInterviewAgent } from '@/lib/agora-server';
 import { finalizeSessionAssessment } from '@/lib/assessment';
 import { apiError } from '@/lib/http';
 import { interviewStore } from '@/lib/interview-store';
@@ -23,9 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
     if (session.agoraAgentId && !['completed', 'assessing'].includes(session.status)) {
-      const events = await interviewStore.listEvents(id);
-      const pool = [...events].reverse().find((event) => event.type === 'session.agent_pool')?.payload.agentIds as Record<string, string> | undefined;
-      await stopInterviewAgents(pool ? Object.values(pool) : [session.agoraAgentId]);
+      await stopInterviewAgent(session.agoraAgentId);
       const fresh = (await interviewStore.getSession(id)) ?? session;
       await interviewStore.updateSession(id, {
         status: 'assessing',

@@ -5,14 +5,7 @@ import { apiError } from '@/lib/http';
 import { interviewStore } from '@/lib/interview-store';
 import { demoQuestion } from '@/lib/demo-turns';
 import { normalizeSpokenText } from '@/lib/interview-demo';
-import { interviewAgentForRole, speakInterviewAgent } from '@/lib/agora-server';
-
-async function speakForActiveRole(session: Awaited<ReturnType<typeof interviewStore.getSession>>, text: string): Promise<void> {
-  if (!session?.agoraAgentId || !session.agentUid) return;
-  const agentId = await interviewAgentForRole(session.id, session.activeRole, session.agoraAgentId);
-  if (!agentId) return;
-  await speakInterviewAgent({ agentId, channel: session.channelName, agentUid: session.agentUid, text });
-}
+import { speakInterviewAgent } from '@/lib/agora-server';
 
 const EventSchema = z.object({
   type: z.enum(['AGENT_STATE_CHANGED', 'METRICS', 'ERROR', 'CONNECTION_STATE', 'INTERRUPTED', 'QUESTION_DELIVERED', 'CAMERA_PRESENCE', 'SILENCE_NUDGE']),
@@ -64,7 +57,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const fresh = (await interviewStore.getSession(id)) ?? session;
         if (fresh.agoraAgentId && fresh.agentUid && fresh.status === 'in_progress') {
           try {
-            await speakForActiveRole(fresh, 'Please return to the camera when you can. The interview is paused.');
+            await speakInterviewAgent({
+              agentId: fresh.agoraAgentId,
+              channel: fresh.channelName,
+              agentUid: fresh.agentUid,
+              text: 'Please return to the camera when you can. The interview is paused.',
+            });
             await interviewStore.appendEvent(id, 'camera.presence_warning', {});
             return NextResponse.json({ accepted: true, warningDelivered: true }, { status: 202 });
           } catch (error) {
@@ -83,7 +81,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const pendingQuestion = fresh.pendingQuestion?.replace(/^\[interrupted\]\s*/i, '').trim();
         if (pendingQuestion && fresh.agoraAgentId && fresh.agentUid && fresh.status === 'in_progress') {
           try {
-            await speakForActiveRole(fresh, `Welcome back. Let me repeat the question: ${pendingQuestion}`);
+            await speakInterviewAgent({
+              agentId: fresh.agoraAgentId,
+              channel: fresh.channelName,
+              agentUid: fresh.agentUid,
+              text: `Welcome back. Let me repeat the question: ${pendingQuestion}`,
+            });
             await interviewStore.appendEvent(id, 'camera.presence_resumed', {});
           } catch (error) {
             console.error('[camera-presence] could not repeat the pending question', { sessionId: id, error });
@@ -108,7 +111,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         ];
         const randomNudge = nudges[Math.floor(Math.random() * nudges.length)];
         try {
-          await speakForActiveRole(fresh, randomNudge);
+          await speakInterviewAgent({
+            agentId: fresh.agoraAgentId,
+            channel: fresh.channelName,
+            agentUid: fresh.agentUid,
+            text: randomNudge,
+          });
           await interviewStore.appendEvent(id, 'silence.nudge', { text: randomNudge });
         } catch (error) {
           console.error('[silence-nudge] could not deliver nudge', { sessionId: id, error });

@@ -11,7 +11,6 @@ import { interviewStore } from '@/lib/interview-store';
 import { DEMO_CLOSING } from '@/lib/interview-demo';
 import { advanceDemoWorkspace, processDemoAnswer } from '@/lib/demo-turns';
 import { workspaceCommand, respondToWorkspaceAttempt, respondToWorkspaceCommand } from '@/lib/workspace-conversation';
-import { interviewAgentForRole, speakInterviewAgent } from '@/lib/agora-server';
 
 export const maxDuration = 60;
 
@@ -54,33 +53,6 @@ function isWorkspaceContinue(answer: string): boolean {
   return /\b(?:continue|next question)(?:\s+(?:now|please|for(?:\s+the)?\s+next\s+panel(?:\s+perspective)?))?\b/.test(normalized);
 }
 
-/**
- * The listening agent converts speech to text and advances server-owned state.
- * The selected role agent speaks the reply, which keeps each Gradium voice
- * stable without disconnecting the candidate from the RTC room.
- */
-async function deliverRoleReply(sessionId: string, text: string): Promise<NextResponse> {
-  if (!text.trim()) return sseResponse('');
-  const fresh = await interviewStore.getSession(sessionId);
-  if (!fresh?.agoraAgentId || fresh.status !== 'in_progress') return sseResponse('');
-  const agentId = await interviewAgentForRole(fresh.id, fresh.activeRole, fresh.agoraAgentId);
-  if (!agentId) return sseResponse('');
-  try {
-    await speakInterviewAgent({
-      agentId,
-      channel: fresh.channelName,
-      agentUid: fresh.agentUid,
-      text,
-    });
-  } catch (error) {
-    console.error('[interview-voice] unable to deliver role reply', { sessionId, role: fresh.activeRole, error });
-    // Returning the text preserves a usable fallback for the listening agent
-    // if an individual dedicated speaker fails to start.
-    return sseResponse(text);
-  }
-  return sseResponse('');
-}
-
 export async function POST(request: Request) {
   const receivedAt = Date.now();
   try {
@@ -91,7 +63,7 @@ export async function POST(request: Request) {
     }
     if (session.phase === 'wrap_up') {
       const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
-      if (version?.definition.demoMode) return deliverRoleReply(session.id, DEMO_CLOSING);
+      if (version?.definition.demoMode) return sseResponse(DEMO_CLOSING);
     }
     let body: ChatBody;
     try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }); }
@@ -105,18 +77,18 @@ export async function POST(request: Request) {
     // Caller-provided system messages and model names are intentionally ignored.
     const contextId = createHash('sha256').update(JSON.stringify(messages.slice(-6))).digest('hex');
     const workspaceAction = workspaceCommand(answer);
-    if (workspaceAction) return deliverRoleReply(session.id, await respondToWorkspaceCommand(session, workspaceAction, contextId, answer));
+    if (workspaceAction) return sseResponse(await respondToWorkspaceCommand(session, workspaceAction, contextId, answer));
     const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
     // In a demo, “continue” is an explicit skip for a workspace explanation.
     // It must advance the pending panel role before generic repeat handling.
     if (version?.definition.demoMode && isWorkspaceContinue(answer)) {
       if (session.currentModality === 'code' || session.currentModality === 'canvas') {
-        return deliverRoleReply(session.id, await advanceDemoWorkspace({ session, upstreamTurnId: contextId, outcome: 'skipped' }));
+        return sseResponse(await advanceDemoWorkspace({ session, upstreamTurnId: contextId, outcome: 'skipped' }));
       }
       // Candidate-directed workspace completion is deliberate. It must not be
       // blocked by a missing client receipt for the prior question, otherwise
       // the panel gets stuck repeating the same technical task.
-      return deliverRoleReply(session.id, await processDemoAnswer({ session, answer, upstreamTurnId: contextId, allowUndeliveredSkip: true }));
+      return sseResponse(await processDemoAnswer({ session, answer, upstreamTurnId: contextId, allowUndeliveredSkip: true }));
     }
     const control = classifyCandidateConversationControl(answer);
     if (control) {
@@ -131,16 +103,16 @@ export async function POST(request: Request) {
         control,
         upstreamTurnId: contextId,
       });
-      return deliverRoleReply(session.id, responseText);
+      return sseResponse(responseText);
     }
     // A workspace explanation is contextual work, not a scored voice answer.
     // Preserve it as a bounded attempt and let the candidate leave after up to
     // three attempts; never pretend an unfinished artifact is complete.
     if (version?.definition.demoMode && (session.currentModality === 'code' || session.currentModality === 'canvas')) {
-      return deliverRoleReply(session.id, await respondToWorkspaceAttempt(session, contextId, answer));
+      return sseResponse(await respondToWorkspaceAttempt(session, contextId, answer));
     }
     if (version?.definition.demoMode) {
-      return deliverRoleReply(session.id, await processDemoAnswer({ session, answer, upstreamTurnId: contextId }));
+      return sseResponse(await processDemoAnswer({ session, answer, upstreamTurnId: contextId }));
     }
     const result = await processCandidateTurn({ session, answer, upstreamTurnId: contextId });
     await interviewStore.appendEvent(session.id, 'llm.response_ready', {
@@ -150,7 +122,7 @@ export async function POST(request: Request) {
       modality: result.decision.modality,
       difficulty: result.decision.difficulty,
     }).catch(() => {});
-    return deliverRoleReply(session.id, result.responseText);
+    return sseResponse(result.responseText);
   } catch (error) {
     return apiError(error, 'Adaptive interview response failed');
   }
