@@ -9,7 +9,7 @@ export const DEMO_CLOSING = 'Thank you. That completes our panel demo. Your evid
 /** Spoken by the existing Agora agent immediately after the 15-second pre-call screen. */
 export function demoWelcome(candidateName?: string | null, panelRoleCount = DEMO_ROLES.length): string {
   const name = candidateName?.trim() || 'there';
-  return `Hello, ${name}. Welcome to RoundTable AI. Take a moment to settle in and do not worry about rushing. You will meet ${panelRoleCount} panel perspectives, each adding a different lens to the same conversation. Take your time with each answer. ${DEMO_OPENING_QUESTION}`;
+  return `Hello, ${name}. Welcome to RoundTable AI. Take a breath and relax. You will meet ${panelRoleCount} perspectives, so take your time. ${DEMO_OPENING_QUESTION}`;
 }
 
 export function normalizeSpokenText(text: string): string {

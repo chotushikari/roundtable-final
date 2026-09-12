@@ -147,11 +147,13 @@ export async function generateGeminiText({
   system,
   prompt,
   signal,
+  maxCompletionTokens = 192,
 }: {
   model: string;
   system: string;
   prompt: string;
   signal?: AbortSignal;
+  maxCompletionTokens?: number;
 }): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY is not configured');
@@ -168,7 +170,7 @@ export async function generateGeminiText({
         messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
         temperature: 0.45,
         ...(['openai/gpt-oss-20b', 'openai/gpt-oss-120b'].includes(model) ? { reasoning_effort: 'low' } : {}),
-        max_completion_tokens: 512,
+        max_completion_tokens: Math.max(64, Math.min(512, Math.trunc(maxCompletionTokens))),
       }),
     },
   );

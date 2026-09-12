@@ -16,7 +16,6 @@ import { LoadingSkeleton } from './LoadingSkeleton';
 import { QuickstartPreCallCard } from './QuickstartPreCallCard';
 import { RoundTableLoadingScreen } from './RoundTableLoadingScreen';
 import { Button } from './ui/button';
-import { PREPARATION_SECONDS } from '@/lib/interview-demo';
 import { useCameraPresence } from './useCameraPresence';
 
 // Dynamically import the ConversationComponent with ssr disabled
@@ -193,12 +192,13 @@ export default function LandingPage({
         });
         const responseData = await sessionResponse.json();
         if (!sessionResponse.ok) throw new Error(responseData.error ?? 'Failed to start interview');
-        // Use the fixed candidate preparation period to hide agent cold start.
-        // The interview duration begins when the managed agent starts, so this
-        // does not consume any of the ten-minute showcase.
+        // Start the agent immediately so its short spoken welcome is audible
+        // during the fixed preparation screen. Candidate audio remains off
+        // until that full boundary finishes, and interview time starts only
+        // when the managed agent starts.
         const agentStartPromise = responseData.agentId
           ? Promise.resolve({ ok: true, data: { agentId: responseData.agentId } })
-          : new Promise((resolve) => window.setTimeout(resolve, PREPARATION_SECONDS * 1_000)).then(() => fetch(`/api/sessions/${responseData.sessionId}/start`, { method: 'POST' }))
+          : fetch(`/api/sessions/${responseData.sessionId}/start`, { method: 'POST' })
             .then(async (response) => ({ ok: response.ok, data: await response.json() }));
         const { default: AgoraRTM } = await import('agora-rtm');
         const rtm: RTMClient = new AgoraRTM.RTM(

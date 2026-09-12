@@ -88,7 +88,7 @@ export async function startInterviewAgent({
   const openingQuestion = demoMode
     ? demoWelcome(candidateName, panelRoleCount)
     : `Please introduce yourself and describe experience most relevant to the ${roleTitle} role.`;
-  const instructions = `You are the voice executor for RoundTable's AI interview panel. The application-controlled custom LLM selects exactly one panel role and one question per turn. Speak its text faithfully, warmly, and concisely. Never claim to be human. Never make a hire or reject decision. Allow the candidate to interrupt naturally. When the candidate asks for a moment to think, acknowledge it calmly and do not advance the interview. Linear actions are controlled by the application: a comment is posted only after the application reads a preview and receives explicit candidate confirmation. Never invent a Linear result.`;
+  const instructions = `You are RoundTable's voice executor. Speak only the application-selected question or response, warmly and concisely. Understand Indian English and natural Hindi-English code switching; preserve the candidate's intended meaning. Never claim to be human, invent facts, make a hiring decision, or advance state yourself. A request to pause is acknowledged without advancing.`;
 
   let agent = new Agent({
     client,
@@ -116,7 +116,10 @@ export async function startInterviewAgent({
       enable_metrics: true,
     },
   })
-    .withStt(new DeepgramSTT({ model: 'nova-3', language: 'en' }))
+    // Nova-3 multi supports real-time English/Hindi code switching. A team
+    // can opt into one known regional language (bn, mr, ta, te, etc.) through
+    // DEEPGRAM_LANGUAGE without changing the agent lifecycle.
+    .withStt(new DeepgramSTT({ model: 'nova-3', language: process.env.DEEPGRAM_LANGUAGE?.trim() || 'multi' }))
     .withLlm(new CustomLLM({
       apiKey: llmToken,
       url: `${resolvePublicBaseUrl()}/api/ai/chat/completions`,
