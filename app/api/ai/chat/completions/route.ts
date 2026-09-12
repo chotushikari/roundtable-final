@@ -92,6 +92,11 @@ export async function POST(request: Request) {
     }
     const control = classifyCandidateConversationControl(answer);
     if (control) {
+      if (control === 'backchannel') {
+        // Listening expressions ("mhm", "yeah", "umm", "i see") must not interrupt
+        // or trigger an AI reset turn — allow the AI interviewer to continue speaking.
+        return sseResponse('');
+      }
       const responseText = await processConversationControlTurn({
         session,
         answer,

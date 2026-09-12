@@ -42,17 +42,18 @@ export async function startTavusConversation(
 ): Promise<TavusConversationResult> {
   const apiKey = requireTavusEnv('TAVUS_API_KEY');
 
-  // Accept either the new (TAVUS_FACE_ID) or old (TAVUS_PERSONA_ID) env var name.
-  const faceId =
+  // Accept replica_id from TAVUS_REPLICA_ID, TAVUS_FACE_ID, or TAVUS_PERSONA_ID.
+  const replicaId =
+    process.env.TAVUS_REPLICA_ID?.trim() ||
     process.env.TAVUS_FACE_ID?.trim() ||
     process.env.TAVUS_PERSONA_ID?.trim();
-  if (!faceId) throw new Error('Tavus avatar requires TAVUS_FACE_ID to be configured.');
+  if (!replicaId) throw new Error('Tavus avatar requires TAVUS_REPLICA_ID to be configured.');
 
-  // pal_id is optional — only send it when explicitly configured.
-  const palId = process.env.TAVUS_PAL_ID?.trim();
+  // persona_id / pal_id is optional — only send it when explicitly configured.
+  const personaId = process.env.TAVUS_PAL_ID?.trim() || process.env.TAVUS_PERSONA_ID?.trim();
 
   const bodyPayload: Record<string, unknown> = {
-    face_id: faceId,
+    replica_id: replicaId,
     conversation_name: `roundtable-${sessionId.slice(0, 8)}`,
     conversational_context:
       'You are a professional AI interviewer on the RoundTable panel. ' +
@@ -65,7 +66,7 @@ export async function startTavusConversation(
     },
   };
 
-  if (palId) bodyPayload.pal_id = palId;
+  if (personaId && personaId !== replicaId) bodyPayload.persona_id = personaId;
 
   const response = await fetch('https://tavusapi.com/v2/conversations', {
     method: 'POST',
