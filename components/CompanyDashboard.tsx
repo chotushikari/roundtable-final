@@ -609,7 +609,7 @@ export function CompanyDashboard() {
     }
     const providerToken = googleDeliveryToken;
     if (!providerToken) {
-      setMessage('Reconnect Google delivery to grant permission to send email from your account.');
+      openGmailDraft(candidateData, link);
       return;
     }
     setPendingAction(`send:${jcId}`);
@@ -620,12 +620,14 @@ export function CompanyDashboard() {
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'send_email', providerToken, to: candidateData.email, subject, body, html }),
       });
-      const result = await response.json() as { error?: { message?: string }; providerStatus?: number };
-      if (!response.ok) throw new Error(result.error?.message ?? 'Google could not send the invitation.');
+      if (!response.ok) {
+        openGmailDraft(candidateData, link);
+        return;
+      }
       setMessage(`Invitation sent to ${candidateData.email}.`);
       setDeliveryActivity({ kind: 'email', label: 'Invitation sent', detail: `${candidateData.fullName ?? candidateData.email} was notified by email.` });
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not send the invitation.');
+    } catch {
+      openGmailDraft(candidateData, link);
     } finally {
       setPendingAction(null);
     }
@@ -638,7 +640,7 @@ export function CompanyDashboard() {
     }
     const providerToken = googleDeliveryToken;
     if (!providerToken) {
-      setMessage('Reconnect Google delivery to grant permission to create calendar events.');
+      openCalendarHold(jcId, candidateData, link);
       return;
     }
     const rawStart = invitationSchedules[jcId]?.startsAt;
@@ -665,12 +667,14 @@ export function CompanyDashboard() {
           endsAt: end.toISOString(),
         }),
       });
-      const result = await response.json() as { error?: { message?: string } };
-      if (!response.ok) throw new Error(result.error?.message ?? 'Google could not create the calendar event.');
+      if (!response.ok) {
+        openCalendarHold(jcId, candidateData, link);
+        return;
+      }
       setMessage(`Calendar invitation created and sent to ${candidateData.email}.`);
       setDeliveryActivity({ kind: 'calendar', label: 'Calendar invite sent', detail: `${candidateData.fullName ?? candidateData.email} received the interview event.` });
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not create the calendar event.');
+    } catch {
+      openCalendarHold(jcId, candidateData, link);
     } finally {
       setPendingAction(null);
     }
@@ -1140,14 +1144,14 @@ export function CompanyDashboard() {
                                     </Button>
                                   )}
                                   <Button size="sm" className={styles.sendButton}
-                                    disabled={!jc.candidate.email || !googleDeliveryToken || pendingAction === `send:${jc.id}`}
-                                    title={googleDeliveryToken ? 'Send this personalised invitation now' : 'Connect Google delivery to send directly'}
+                                    disabled={!jc.candidate.email || pendingAction === `send:${jc.id}`}
+                                    title={googleDeliveryToken ? 'Send this personalised invitation now' : 'Send invitation via Google'}
                                     onClick={() => void sendInvitationEmail(jc.id, jc.candidate, link)}>
                                     {pendingAction === `send:${jc.id}` ? <LoaderCircle className={styles.spin} size={13}/> : <Mail size={13}/>} Send invitation
                                   </Button>
                                   <Button size="sm" className={styles.sendButton}
-                                    disabled={!jc.candidate.email || !googleDeliveryToken || pendingAction === `calendar:${jc.id}`}
-                                    title={googleDeliveryToken ? 'Create and send a calendar invitation now' : 'Connect Google delivery to create calendar events'}
+                                    disabled={!jc.candidate.email || pendingAction === `calendar:${jc.id}`}
+                                    title={googleDeliveryToken ? 'Create and send a calendar invitation now' : 'Schedule calendar invite'}
                                     onClick={() => void createCalendarEvent(jc.id, jc.candidate, link)}>
                                     {pendingAction === `calendar:${jc.id}` ? <LoaderCircle className={styles.spin} size={13}/> : <CalendarDays size={13}/>} Send calendar invite
                                   </Button>
