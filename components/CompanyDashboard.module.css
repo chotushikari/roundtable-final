@@ -178,6 +178,13 @@
 .dashboardFoot{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;color:#545454;font-size:10px}.dashboardFoot svg{color:#3ecf8e}
 .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 
+/* Quiet, roomy dashboard overrides: the job workspace is the product, not a landing page. */
+.topbar{height:68px;padding:0 max(28px,calc((100vw - 1360px)/2))}
+.brand{font-size:17px}.userChip b{font-size:13px}.userChip small{font-size:11px}
+.shell{width:min(1360px,calc(100% - 48px));padding:32px 0 72px}
+.workbench{grid-template-columns:286px minmax(0,1fr);gap:18px}.sidebar{top:86px;border-radius:14px;background:#121714}.sidebarHead{padding:18px}.newJobBtn{height:34px!important;padding:0 12px!important;font-size:12px!important}
+.jobRow{padding:17px 18px}.jobRowInner strong{font-size:14px}.jobMeta{font-size:12px}.jobDetail{border-radius:14px;background:#111613}.jobHeader{padding:27px 28px 23px;background:#131a15}.jobHeader h2{font-size:28px}.tabs{background:#101310}.tab{padding:17px 15px;font-size:14px}.tabPanel{padding:32px}.tabIntro strong{font-size:20px}.tabIntro span{font-size:14px}.field{gap:8px}.field>span,.panelBlock>span{font-size:14px}.field input,.field textarea,.linkRow input{border-color:#303a33;border-radius:8px;padding:12px 14px;background:#171a18;font:15px/1.55 Manrope,sans-serif}.candidateInfo strong{font-size:15px}.candidateInfo span,.sessionStatus{font-size:12px}.analysisButton{height:36px;padding:0 14px;font-size:12px}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */
 @media(max-width:1100px){.workbench{grid-template-columns:260px 1fr}.bentoGrid{grid-template-columns:1.35fr repeat(3,minmax(110px,.7fr))}.commandCopy{padding:34px}.commandCopy h1{font-size:44px}}
 @media(max-width:860px){.metrics{grid-template-columns:repeat(2,1fr)}.workbench{grid-template-columns:1fr}.sidebar{position:static}.commandHero{grid-template-columns:1fr}.commandCopy{min-height:240px}.signalCard{grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;min-height:190px;border-top:1px solid #284434;border-left:0}.signalLabel{align-items:flex-start;flex-direction:column;gap:5px}.signalCanvas{grid-row:span 2;min-height:150px}.signalLegend{border-top:0;border-bottom:1px solid #ffffff0d}.bentoGrid{grid-template-columns:repeat(2,1fr)}.bentoFocus{grid-row:auto;grid-column:span 2;min-height:180px}.bentoActivity{grid-column:span 2}}
