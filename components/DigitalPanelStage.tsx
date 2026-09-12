@@ -85,6 +85,10 @@ export function DigitalPanelStage({
   const portraitPath = avatarAssetPath(role, 'portrait.png');
   const isTavusActive = presentationMode === 'tavus' && Boolean(tavusConversationUrl);
 
+  const formattedTavusUrl = tavusConversationUrl
+    ? `${tavusConversationUrl}${tavusConversationUrl.includes('?') ? '&' : '?'}minimal=true&show_leave_button=false&show_fullscreen_button=false&show_header=false`
+    : null;
+
   useEffect(() => {
     const mount = avatarMountRef.current;
     if (!avatarVideoTrack || !mount) {
@@ -116,14 +120,14 @@ export function DigitalPanelStage({
 
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1.55fr)_minmax(13rem,.7fr)]">
         <div className="relative min-h-[17rem] overflow-hidden bg-[#0c0f0d] sm:min-h-[23rem]">
-          {/* 1. Tavus photorealistic video host mode */}
-          {isTavusActive ? (
-            <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+          {/* 1. Tavus photorealistic pure video avatar mode (frameless video host) */}
+          {isTavusActive && formattedTavusUrl ? (
+            <div className={`absolute inset-0 z-10 overflow-hidden transition-opacity duration-500 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
               <iframe
-                src={tavusConversationUrl!}
+                src={formattedTavusUrl}
                 allow="camera; microphone; autoplay; display-capture"
-                className="h-full w-full border-0 object-cover"
-                title="Tavus AI Interviewer Stream"
+                className="h-[108%] w-[108%] -translate-x-[4%] -translate-y-[4%] border-0 object-cover pointer-events-none"
+                title="Tavus AI Interviewer Video Avatar"
               />
             </div>
           ) : null}
