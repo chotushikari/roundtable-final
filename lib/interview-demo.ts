@@ -6,6 +6,12 @@ export const DEMO_ROLES: PanelRole[] = ['hiring_manager', 'technical', 'product'
 export const DEMO_OPENING_QUESTION = 'I’m your AI Hiring Manager. Briefly introduce yourself and tell us about one project you built.';
 export const DEMO_CLOSING = 'Thank you. That completes our panel demo. Your evidence summary is next, for human review.';
 
+/** Spoken by the existing Agora agent immediately after the 15-second pre-call screen. */
+export function demoWelcome(candidateName?: string | null, panelRoleCount = DEMO_ROLES.length): string {
+  const name = candidateName?.trim() || 'there';
+  return `Hello, ${name}. Welcome to RoundTable AI. Take a moment to settle in and do not worry about rushing. You will meet ${panelRoleCount} panel perspectives, each adding a different lens to the same conversation. Take your time with each answer. ${DEMO_OPENING_QUESTION}`;
+}
+
 export function normalizeSpokenText(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
 }

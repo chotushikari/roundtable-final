@@ -41,6 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const version = await interviewStore.getInterviewVersion(session.interviewVersionId);
     if (!version) throw new Error('Published interview plan not found');
+    const invitation = await interviewStore.getInvitation(session.invitationId);
     let agentId: string | null = null;
     try {
       agentId = await startInterviewAgent({
@@ -51,6 +52,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         roleTitle: version.definition.roleTitle,
         durationMinutes: version.definition.durationMinutes,
         demoMode: version.definition.demoMode,
+        candidateName: invitation?.candidateName,
+        panelRoleCount: version.definition.panelRoles.length,
       });
       const fresh = (await interviewStore.getSession(id)) ?? session;
       if (fresh.status === 'completed' || fresh.status === 'failed') {

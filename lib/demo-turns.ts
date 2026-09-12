@@ -33,6 +33,15 @@ export function isIncompleteDemoAnswer(answer: string, role: string): boolean {
   if (/^(?:please )?(?:skip(?: this(?: question)?)?|pass|continue(?: (?:now|please|for(?: the)? next panel(?: perspective)?))?|next(?: question)?|i (?:don't|do not) know)[.! ]*$/i.test(answer)
     || /\b(that['’]s (?:all|my answer)|i['’]m done)\W*$/i.test(answer)) return false;
   const words = answer.trim().split(/\s+/);
+  // Complete short answers (for example, “Reduced latency”) should hand off
+  // automatically outside the opening project question. Waiting for eight
+  // words here made the panel look stuck and invited “continue” commands.
+  if (role !== 'hiring_manager') {
+    if (words.length < 2 || /\b(that|was|is|the|a|an|to|and|but|because|with|my|took|were)\W*$/i.test(answer)) return true;
+    // Accept a concise outcome, but do not mistake an ASR tail such as
+    // “during the checkout page” for a finished answer.
+    return words.length < 8 && !/\b(reduced|improved|increased|decreased|faster|slower|clearer|learned|fixed|built|implemented)\b/i.test(answer);
+  }
   if (words.length < 8 || /\b(that|was|is|the|a|an|to|and|but|because|with|my|took|were)\W*$/i.test(answer)) return true;
   // An introduction alone is not the requested project example.
   return role === 'hiring_manager'

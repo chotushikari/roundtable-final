@@ -221,6 +221,7 @@ test('demo fragments merge cumulative ASR text and explicit short answers can fi
   assert.equal(isIncompleteDemoAnswer('Please continue.', 'technical'), false);
   assert.equal(isIncompleteDemoAnswer('Next question.', 'technical'), false);
   assert.equal(isIncompleteDemoAnswer("I used Redis. That's my answer.", 'technical'), false);
+  assert.equal(isIncompleteDemoAnswer('Reduced latency.', 'customer'), false);
   assert.equal(isIncompleteDemoAnswer('I skipped the cache because latency was high and', 'technical'), true);
 });
 

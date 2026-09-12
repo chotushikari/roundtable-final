@@ -498,6 +498,7 @@ export default function LandingPage({
                       panelRoleCount={invitation?.panelRoles.length}
                       cameraRequired={Boolean(invitationToken)}
                       cameraStatus={camera.status}
+                      cameraStream={camera.stream}
                       onEnableCamera={camera.start}
                     />
                   </AgoraProvider>

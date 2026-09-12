@@ -47,5 +47,7 @@ export interface ConversationComponentProps {
   panelRoleCount?: number;
   cameraRequired?: boolean;
   cameraStatus?: CameraPresenceStatus;
+  /** Locally-authorized preview only; no frames are recorded or uploaded. */
+  cameraStream?: MediaStream | null;
   onEnableCamera?: () => Promise<void>;
 }

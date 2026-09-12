@@ -107,6 +107,7 @@ export default function ConversationComponent({
   panelRoleCount,
   cameraRequired = false,
   cameraStatus = 'idle',
+  cameraStream = null,
   onEnableCamera,
 }: ConversationComponentProps) {
   const agentUID = String(DEFAULT_AGENT_UID);
@@ -913,7 +914,7 @@ export default function ConversationComponent({
           role="region"
           aria-label="AI agent status visualization"
         >
-          <RoundTablePanel role={activeRole} state={visualizerState} currentUtterance={currentInProgressMessage ? String(currentInProgressMessage.text) : undefined} />
+          <RoundTablePanel role={activeRole} state={visualizerState} currentUtterance={currentInProgressMessage ? String(currentInProgressMessage.text) : undefined} cameraStream={cameraStream} />
           {remoteUsers.map((user) => (
             <div key={user.uid} className="hidden">
               {typeof RemoteUser === 'function' ? <RemoteUser user={user} playAudio={true} /> : null}

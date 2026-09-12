@@ -12,7 +12,7 @@ import {
   SpeakPriorityInterrupt,
 } from 'agora-agents';
 import { DEFAULT_AGENT_UID } from '@/lib/agora';
-import { DEMO_OPENING_QUESTION } from '@/lib/interview-demo';
+import { demoWelcome } from '@/lib/interview-demo';
 import { createInterviewTts } from '@/lib/interview-tts';
 import { resolvePublicBaseUrl } from '@/lib/public-url';
 
@@ -67,6 +67,8 @@ export async function startInterviewAgent({
   roleTitle = 'Software Engineer',
   durationMinutes = 30,
   demoMode = false,
+  candidateName,
+  panelRoleCount,
 }: {
   sessionId: string;
   channel: string;
@@ -75,6 +77,8 @@ export async function startInterviewAgent({
   roleTitle?: string;
   durationMinutes?: number;
   demoMode?: boolean;
+  candidateName?: string | null;
+  panelRoleCount?: number;
 }): Promise<string> {
   const client = new AgoraClient({
     area: resolveAgoraArea(),
@@ -82,7 +86,7 @@ export async function startInterviewAgent({
     appCertificate: requireAgoraEnv('NEXT_AGORA_APP_CERTIFICATE'),
   });
   const openingQuestion = demoMode
-    ? DEMO_OPENING_QUESTION
+    ? demoWelcome(candidateName, panelRoleCount)
     : `Please introduce yourself and describe experience most relevant to the ${roleTitle} role.`;
   const instructions = `You are the voice executor for RoundTable's AI interview panel. The application-controlled custom LLM selects exactly one panel role and one question per turn. Speak its text faithfully, warmly, and concisely. Never claim to be human. Never make a hire or reject decision. Allow the candidate to interrupt naturally. When the candidate asks for a moment to think, acknowledge it calmly and do not advance the interview. Linear actions are controlled by the application: a comment is posted only after the application reads a preview and receives explicit candidate confirmation. Never invent a Linear result.`;
 

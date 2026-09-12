@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { avatarAssetPath } from '@/lib/avatar-presentation';
 
-type RoundTablePanelProps = { role: string; state: string | null; currentUtterance?: string };
+type RoundTablePanelProps = { role: string; state: string | null; currentUtterance?: string; cameraStream?: MediaStream | null };
 
 type Member = {
   role: 'technical' | 'product' | 'customer' | 'hiring_manager' | 'behavioral';
@@ -35,7 +35,7 @@ function activity(state: string | null) {
 }
 
 /** Presentation-only. The Agora agent and server own voice, transcript, and role handoffs. */
-export function RoundTablePanel({ role, state, currentUtterance }: RoundTablePanelProps) {
+export function RoundTablePanel({ role, state, currentUtterance, cameraStream = null }: RoundTablePanelProps) {
   const activeRole = MEMBERS.some((member) => member.role === role) ? role : 'technical';
   const activeMember = MEMBERS.find((member) => member.role === activeRole) ?? MEMBERS[0];
   const previousRole = useRef(activeRole);
@@ -75,15 +75,31 @@ export function RoundTablePanel({ role, state, currentUtterance }: RoundTablePan
         return <div key={member.role} className={`absolute z-20 -translate-x-1/2 ${member.position} ${isActive ? 'roundtable-node-active' : ''} ${handoffFrom === member.role ? 'roundtable-node-leaving' : ''}`}>
           <div className="flex w-[5.4rem] flex-col items-center text-center sm:w-24">
             <div className={`relative h-[4.45rem] w-[4.45rem] overflow-hidden rounded-full border bg-[#18241e] p-[3px] shadow-[0_8px_26px_rgba(0,0,0,.4)] sm:h-[5.2rem] sm:w-[5.2rem] ${isActive ? 'border-emerald-300 ring-4 ring-emerald-300/15' : 'border-white/20'}`}>
-              <Image src={avatarAssetPath(member.role, 'portrait.png')} alt={`${member.name}, ${member.title}`} fill sizes="84px" unoptimized className="rounded-full object-cover" />
+              <Image src={avatarAssetPath(member.role, 'portrait.png')} alt={`${member.name}, ${member.title}`} fill sizes="84px" unoptimized className={`rounded-full object-cover ${isActive ? 'panel-avatar-listening' : ''}`} />
               {isActive && <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-[#0d1510] bg-emerald-300" />}
             </div>
             <span className={`mt-1.5 font-mono text-[9px] font-semibold uppercase tracking-[.12em] ${isActive ? 'text-emerald-200' : 'text-[#d1ddd5]'}`}>{member.name}</span><span className="mt-0.5 text-[8px] uppercase tracking-[.08em] text-[#7f9185]">{member.title}</span>
           </div>
         </div>;
       })}
+      {cameraStream && <LocalCamera stream={cameraStream} />}
     </div>
 
     <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-black/25 px-4 py-3 sm:px-5"><p className="font-mono text-[9px] font-semibold uppercase tracking-[.16em] text-emerald-200">{activeMember.name} · {activeMember.title}</p><p className="mt-1 line-clamp-2 text-sm leading-6 text-[#e5eee8]">{currentUtterance || (currentActivity === 'thinking' ? 'The panel is preparing the next question from your shared interview context.' : 'Your answers remain visible in the live transcript for human review.')}</p></div>
   </section>;
+}
+
+function LocalCamera({ stream }: { stream: MediaStream }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = stream;
+    void video.play().catch(() => {});
+    return () => { video.srcObject = null; };
+  }, [stream]);
+  return <div className="absolute bottom-2 left-1/2 z-30 w-28 -translate-x-1/2 overflow-hidden rounded-xl border border-emerald-200/35 bg-black shadow-xl sm:w-32">
+    <video ref={videoRef} muted playsInline className="aspect-[4/3] w-full object-cover" aria-label="Your camera preview" />
+    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded bg-black/65 px-1.5 py-0.5 font-mono text-[7px] uppercase tracking-[.15em] text-emerald-100">You · live</span>
+  </div>;
 }

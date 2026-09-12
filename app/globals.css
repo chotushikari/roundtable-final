@@ -324,9 +324,11 @@ html {
 @keyframes roundtable-node-leaving { from { opacity: 1; } to { opacity: .45; } }
 .roundtable-node-active { animation: roundtable-node-active 1.8s ease-in-out infinite; }
 .roundtable-node-leaving { animation: roundtable-node-leaving 700ms ease-out; }
+.panel-avatar-listening { animation: panel-avatar-listening 3.4s ease-in-out infinite; transform-origin: 50% 88%; }
+@keyframes panel-avatar-listening { 0%,100% { transform: translateY(0) rotate(0deg); } 45% { transform: translateY(-1px) rotate(1.1deg); } 55% { transform: translateY(0) rotate(-.6deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .panel-avatar-speaking, .roundtable-node-active, .roundtable-node-leaving { animation: none; }
+  .panel-avatar-speaking, .panel-avatar-listening, .roundtable-node-active, .roundtable-node-leaving { animation: none; }
   .roundtable-signal { display: none; }
   html { scroll-behavior: auto; }
   .roundtable-loading__mark span, .roundtable-loading__bar i { animation: none; }
