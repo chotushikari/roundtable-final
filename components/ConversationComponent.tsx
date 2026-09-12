@@ -583,18 +583,26 @@ export default function ConversationComponent({
     return () => window.clearInterval(timer);
   }, [compactDemo, companionDemo]);
 
-  // Ensure remote audio tracks (e.g. AI agent) are played
+  // Ensure remote audio tracks (e.g. AI agent) are played.
+  // During Tavus mode, mute Agora agent audio volume to eliminate double TTS and audio mismatch.
   useEffect(() => {
     remoteUsers.forEach((user) => {
-      if (user.audioTrack && !user.audioTrack.isPlaying) {
-        try {
-          void user.audioTrack.play();
-        } catch {
-          // ignore autoplay restrictions until user interacts
+      if (user.audioTrack) {
+        if (avatarState.mode === 'tavus') {
+          user.audioTrack.setVolume(0);
+        } else {
+          user.audioTrack.setVolume(100);
+          if (!user.audioTrack.isPlaying) {
+            try {
+              void user.audioTrack.play();
+            } catch {
+              // ignore autoplay restrictions until user interacts
+            }
+          }
         }
       }
     });
-  }, [remoteUsers]);
+  }, [remoteUsers, avatarState.mode]);
 
   // The Generic Avatar is a separate RTC publisher. Subscribe explicitly to
   // its video track so `DigitalPanelStage` can mount the real video rather

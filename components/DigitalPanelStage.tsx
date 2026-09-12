@@ -116,7 +116,7 @@ export function DigitalPanelStage({
 
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1.55fr)_minmax(13rem,.7fr)]">
         <div className="relative min-h-[17rem] overflow-hidden bg-[#0c0f0d] sm:min-h-[23rem]">
-          {/* 1. Tavus photorealistic iframe mode */}
+          {/* 1. Tavus photorealistic video host mode */}
           {isTavusActive ? (
             <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
               <iframe

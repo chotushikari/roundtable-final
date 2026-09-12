@@ -55,10 +55,10 @@ export async function startTavusConversation(
   const bodyPayload: Record<string, unknown> = {
     replica_id: replicaId,
     conversation_name: `roundtable-${sessionId.slice(0, 8)}`,
+    custom_greeting: "Welcome to RoundTable. I'm your AI Hiring Manager.",
     conversational_context:
-      'You are a professional AI interviewer on the RoundTable panel. ' +
-      'Maintain warm, professional body language. ' +
-      'Do not speak — the interview audio is handled by a separate system.',
+      'You are the Hiring Manager on the RoundTable AI interview panel. ' +
+      'Listen attentively to the candidate and respond warmly and professionally as an executive hiring manager.',
     properties: {
       participant_absent_timeout: 300,
       max_call_duration: 5_400,
