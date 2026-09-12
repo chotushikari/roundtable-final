@@ -8,6 +8,8 @@ function assert(condition: unknown, message: string): asserts condition {
 
 process.env.NEXT_PUBLIC_AGORA_APP_ID = '0123456789abcdef0123456789abcdef';
 process.env.NEXT_AGORA_APP_CERTIFICATE = 'fedcba9876543210fedcba9876543210';
+process.env.GRADIUM_API_KEY = 'gr_contract_test_key';
+process.env.GRADIUM_TTS_VOICE_ID = 'en_us_male_1';
 
 async function verifyCombinedToken() {
   const { GET } = await import('../app/api/generate-agora-token/route');

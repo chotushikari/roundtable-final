@@ -2,12 +2,16 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import { AvatarPresentationMode, avatarAssetPath } from '@/lib/avatar-presentation';
 
 type DigitalPanelStageProps = {
   role: string;
   state: string | null;
   currentUtterance?: string;
   avatarVideoTrack?: { play: (element: string | HTMLElement) => void };
+  presentationMode?: AvatarPresentationMode;
+  tavusConversationUrl?: string | null;
+  isTransitioning?: boolean;
 };
 
 type RoleProfile = {
@@ -61,15 +65,25 @@ function activity(state: string | null) {
 }
 
 /**
- * A local, presentational AI panel host. It intentionally does not claim to be
- * live video or lip-synced media: Agora audio and server-owned interview state
- * remain the authoritative experience.
+ * Role-aware AI Panel Host supporting Tavus photorealistic stream iframe (pre-technical),
+ * static portrait with CSS breathing animation (technical), and Agora RTC.
  */
-export function DigitalPanelStage({ role, state, currentUtterance, avatarVideoTrack }: DigitalPanelStageProps) {
+export function DigitalPanelStage({
+  role,
+  state,
+  currentUtterance,
+  avatarVideoTrack,
+  presentationMode = 'static',
+  tavusConversationUrl,
+  isTransitioning = false,
+}: DigitalPanelStageProps) {
   const profile = ROLES[role] ?? ROLES.technical;
   const status = activity(state);
   const avatarMountRef = useRef<HTMLDivElement>(null);
   const [hasLiveAvatar, setHasLiveAvatar] = useState(false);
+
+  const portraitPath = avatarAssetPath(role, 'portrait.png');
+  const isTavusActive = presentationMode === 'tavus' && Boolean(tavusConversationUrl);
 
   useEffect(() => {
     const mount = avatarMountRef.current;
@@ -89,7 +103,9 @@ export function DigitalPanelStage({ role, state, currentUtterance, avatarVideoTr
     <section className="w-full max-w-5xl overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#101411] shadow-[0_28px_100px_rgba(0,0,0,.42)]" aria-label="RoundTable AI panel stage">
       <div className="flex items-center justify-between border-b border-white/10 bg-[#151a17] px-4 py-3 sm:px-5">
         <div className="min-w-0">
-          <p className="font-mono text-[9px] font-semibold uppercase tracking-[.2em] text-emerald-300">AI interview panel · disclosed</p>
+          <p className="font-mono text-[9px] font-semibold uppercase tracking-[.2em] text-emerald-300">
+            {isTavusActive ? 'Photorealistic AI Host · Tavus V2' : 'AI interview panel · disclosed'}
+          </p>
           <p className="mt-1 truncate text-sm font-semibold text-white">{profile.label}</p>
         </div>
         <span className="ml-3 inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[10px] font-medium text-[#d6e1db]">
@@ -100,19 +116,39 @@ export function DigitalPanelStage({ role, state, currentUtterance, avatarVideoTr
 
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1.55fr)_minmax(13rem,.7fr)]">
         <div className="relative min-h-[17rem] overflow-hidden bg-[#0c0f0d] sm:min-h-[23rem]">
+          {/* 1. Tavus photorealistic iframe mode */}
+          {isTavusActive ? (
+            <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+              <iframe
+                src={tavusConversationUrl!}
+                allow="camera; microphone; autoplay; display-capture"
+                className="h-full w-full border-0 object-cover"
+                title="Tavus AI Interviewer Stream"
+              />
+            </div>
+          ) : null}
+
+          {/* 2. Protoface / RTC Avatar Video Track */}
+          <div ref={avatarMountRef} className={`absolute inset-0 z-10 [&_video]:h-full [&_video]:w-full [&_video]:object-cover ${hasLiveAvatar && !isTavusActive ? 'opacity-100' : 'pointer-events-none opacity-0'}`} aria-label={hasLiveAvatar ? 'Live AI avatar video' : undefined} />
+
+          {/* 3. Role Static Portrait image fallback */}
           <Image
-            src="/images/roundtable-panel-host.png"
-            alt="Illustrated RoundTable AI panel host"
+            src={portraitPath}
+            alt={`${profile.label} portrait`}
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 68vw"
-            className={`object-cover object-center transition-opacity duration-500 ${hasLiveAvatar ? 'opacity-0' : 'opacity-100'}`}
+            unoptimized
+            className={`object-cover object-top transition-opacity duration-500 ${hasLiveAvatar || isTavusActive ? 'opacity-0' : 'opacity-100'} ${status.active ? 'scale-[1.02]' : 'scale-100'} transition-transform duration-700`}
           />
-          <div ref={avatarMountRef} className={`absolute inset-0 [&_video]:h-full [&_video]:w-full [&_video]:object-cover ${hasLiveAvatar ? 'opacity-100' : 'pointer-events-none opacity-0'}`} aria-label={hasLiveAvatar ? 'Live AI avatar video' : undefined} />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,8,6,.38),transparent_45%,rgba(4,8,6,.16)),linear-gradient(0deg,rgba(4,8,6,.78),transparent_48%)]" />
-          <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-3 sm:inset-x-5 sm:bottom-5">
+
+          <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(90deg,rgba(4,8,6,.38),transparent_45%,rgba(4,8,6,.16)),linear-gradient(0deg,rgba(4,8,6,.78),transparent_48%)] z-20" />
+          
+          <div className="absolute inset-x-4 bottom-4 z-30 flex items-end justify-between gap-3 sm:inset-x-5 sm:bottom-5">
             <div className="max-w-[78%] rounded-2xl border border-white/15 bg-[#0a0e0c]/80 px-3.5 py-2.5 backdrop-blur-md">
-              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-emerald-200">{hasLiveAvatar ? 'Live AI avatar · disclosed' : 'Current perspective'}</p>
+              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-emerald-200">
+                {isTavusActive ? 'Tavus Live Stream · Pre-Technical' : hasLiveAvatar ? 'Live AI avatar · disclosed' : 'Current perspective'}
+              </p>
               <p className={`mt-1 text-sm font-semibold ${profile.color}`}>{profile.lens}</p>
             </div>
             <div className="flex h-10 items-end gap-1 rounded-xl border border-white/10 bg-black/35 px-2.5 py-2 backdrop-blur-md" aria-hidden="true">
@@ -153,3 +189,4 @@ export function DigitalPanelStage({ role, state, currentUtterance, avatarVideoTr
     </section>
   );
 }
+

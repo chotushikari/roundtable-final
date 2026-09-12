@@ -45,6 +45,8 @@ import {
 } from './QuickstartPipelineMetrics';
 import { QuickstartTranscriptPanel } from './QuickstartTranscriptPanel';
 import { DigitalPanelStage } from './DigitalPanelStage';
+import { AvatarOverlay } from './AvatarOverlay';
+import { useAvatarPresentation } from '@/hooks/useAvatarPresentation';
 import { InterviewPreparationScreen } from './InterviewPreparationScreen';
 import type { ConversationComponentProps } from '@/types/conversation';
 import { DEMO_CLOSING, normalizeSpokenText, PREPARATION_SECONDS } from '@/lib/interview-demo';
@@ -137,6 +139,21 @@ export default function ConversationComponent({
   const cameraWarningInFlightRef = useRef(false);
   const cameraLastWarningAttemptRef = useRef(0);
   const cameraEndTriggeredRef = useRef(false);
+  // Transcript + agent state — managed with AgoraVoiceAI (see effect below).
+  const [rawTranscript, setRawTranscript] = useState<
+    TranscriptHelperItem<Partial<UserTranscription | AgentTranscription>>[]
+  >([]);
+  const [agentState, setAgentState] = useState<AgentState | null>(null);
+  const [agentMetrics, setAgentMetrics] = useState<QuickstartAgentMetric[]>([]);
+
+  const avatarState = useAvatarPresentation({
+    sessionId: agoraData.sessionId,
+    activeRole,
+    activePhase,
+    currentModality: activeModality,
+    agentState,
+    tavusEnabled: process.env.NEXT_PUBLIC_TAVUS_ENABLED === 'true',
+  });
 
   const logEvent = useCallback((type: 'AGENT_STATE_CHANGED' | 'METRICS' | 'ERROR' | 'CONNECTION_STATE' | 'INTERRUPTED', payload: Record<string, unknown>) => {
     if (!agoraData.sessionId) return;
@@ -175,12 +192,6 @@ export default function ConversationComponent({
   const [connectionState, setConnectionState] = useState<string>('CONNECTING');
   const [joinedUID, setJoinedUID] = useState<UID>(0);
 
-  // Transcript + agent state — managed with AgoraVoiceAI (see effect below).
-  const [rawTranscript, setRawTranscript] = useState<
-    TranscriptHelperItem<Partial<UserTranscription | AgentTranscription>>[]
-  >([]);
-  const [agentState, setAgentState] = useState<AgentState | null>(null);
-  const [agentMetrics, setAgentMetrics] = useState<QuickstartAgentMetric[]>([]);
   const [connectionIssues, setConnectionIssues] = useState<ConnectionIssue[]>(
     [],
   );
@@ -916,11 +927,19 @@ export default function ConversationComponent({
           role="region"
           aria-label="AI agent status visualization"
         >
+          <AvatarOverlay
+            role={activeRole}
+            agentState={agentState}
+            isVisible={avatarState.isCanvasVisible}
+          />
           <DigitalPanelStage
             role={activeRole}
             state={visualizerState}
             currentUtterance={currentInProgressMessage ? String(currentInProgressMessage.text) : undefined}
             avatarVideoTrack={remoteUsers.find((user) => String(user.uid) === String(DEFAULT_AVATAR_UID))?.videoTrack}
+            presentationMode={avatarState.mode}
+            tavusConversationUrl={avatarState.tavusConversationUrl}
+            isTransitioning={avatarState.isTransitioning}
           />
           {remoteUsers.map((user) => (
             <div key={user.uid} className="hidden">
